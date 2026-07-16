@@ -1,0 +1,25 @@
+[package]
+name = "northstar-nemat-packer"
+version = "0.1.2"
+edition = "2021"
+build = "build.rs"
+description = "North Star XMLtype .nemat material library packer, inspector and graph tool"
+license = "MIT"
+
+[dependencies]
+northstar-cli = { path = "../../shared/northstar_cli" }
+northstar-nef8 = { path = "../../shared/northstar_nef8" }
+blake3 = "1.5"
+flate2 = "1.0"
+serde_json = "1.0"
+
+[build-dependencies]
+winres = "0.1"
+
+[lib]
+name = "northstar_nemat_packer"
+path = "src/lib.rs"
+
+[[bin]]
+name = "northstar-nemat-packer"
+path = "src/main.rs"

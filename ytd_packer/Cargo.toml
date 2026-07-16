@@ -1,0 +1,23 @@
+[package]
+name = "northstar-ytd-packer"
+version = "0.3.3"
+edition = "2021"
+build = "build.rs"
+description = "North Star XML-free YTD/NEF8 texture dictionary packer and extractor"
+license = "MIT"
+
+[dependencies]
+northstar-cli = { path = "../../shared/northstar_cli" }
+northstar-nef8 = { path = "../../shared/northstar_nef8" }
+blake3 = "1.5"
+flate2 = "1.0"
+image = { version = "0.25", default-features = false, features = ["png", "jpeg", "tga", "bmp"] }
+newengine-texture-container = { path = "../../../../../Repos/NorthStar/NewEngine/neocore2/crates/newengine-texture-container" }
+serde_json = "1.0"
+
+[build-dependencies]
+winres = "0.1"
+
+[[bin]]
+name = "northstar-ytd-packer"
+path = "src/main.rs"

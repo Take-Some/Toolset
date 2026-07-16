@@ -1,0 +1,17 @@
+[package]
+name = "northstar-symbol-extract"
+version = "0.1.1"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+description = "First-party North Star PE/COFF symbol listing utility."
+build = "build.rs"
+
+[build-dependencies]
+winres = "0.1"
+
+[[bin]]
+name = "northstar-symbol-extract"
+path = "src/main.rs"
+
+[dependencies]
+northstar-cli = { path = "../../shared/northstar_cli" }

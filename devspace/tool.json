@@ -1,0 +1,42 @@
+{
+  "schema": "takesome.tool.v1",
+  "id": "northstar.devspace",
+  "name": "North Star DEV Space",
+  "description": "First-party native DEV command surface for workspace doctor, build validation, legacy cleanup guard, DDS inspection, cubemap-layout diagnostics and deterministic smoke noise.",
+  "kind": "rust-cli",
+  "root": ".",
+  "cargo_manifest": "Cargo.toml",
+  "default_args": [
+    "doctor",
+    "--root",
+    "$repo_root"
+  ],
+  "validation_args": [
+    "doctor",
+    "--root",
+    "$repo_root"
+  ],
+  "capabilities": [
+    "workspace.doctor",
+    "validation.build_surface",
+    "validation.legacy_tool_identity",
+    "analysis.asset_tree",
+    "analysis.dds_header",
+    "analysis.cubemap_layout",
+    "procedural.noise_smoke"
+  ],
+  "build_validation": true,
+  "safe_for_build": true,
+  "maturity": "native-dev",
+  "legacy_replaces": [
+    "DDSHeaderViewer",
+    "DDSCubemap",
+    "NoiseGenerator",
+    "AssetAnalysisTool",
+    "netexturetool",
+    "nepak",
+    "nematerialtool",
+    "nelistfile",
+    "nelisyfile"
+  ]
+}

@@ -1,0 +1,29 @@
+[package]
+name = "northstar-log-reader"
+version = "0.1.2"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+description = "North Star first-party live URL log reader with CLI and native UI app."
+build = "build.rs"
+
+[dependencies]
+northstar-cli = { path = "../../shared/northstar_cli" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1.0"
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61.2", features = [
+    "Win32_Foundation",
+    "Win32_Graphics_Gdi",
+    "Win32_System_LibraryLoader",
+    "Win32_UI_Controls",
+    "Win32_UI_Controls_Dialogs",
+    "Win32_UI_WindowsAndMessaging"
+] }
+
+[build-dependencies]
+winres = "0.1"
+
+[[bin]]
+name = "northstar-log-reader"
+path = "src/main.rs"

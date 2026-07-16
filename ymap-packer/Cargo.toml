@@ -1,0 +1,25 @@
+[package]
+name = "northstar-ymap-packer"
+version = "0.1.0"
+edition = "2021"
+build = "build.rs"
+description = "North Star YMAP/NEF8 map definition packer and inspector"
+license = "MIT"
+
+[workspace]
+
+[dependencies]
+northstar-cli = { path = "../../shared/northstar_cli" }
+northstar-nef8 = { path = "../../shared/northstar_nef8" }
+blake3 = "1.5"
+flate2 = "1.0"
+serde_json = "1.0"
+newengine-assets-api = { path = "../../../../../Repos/NorthStar/NewEngine/neocore2/crates/newengine-assets-api" }
+newengine-asset-format-nef8 = { path = "../../../../../Repos/NorthStar/NewEngine/neocore2/crates/newengine-asset-format-nef8" }
+
+[build-dependencies]
+winres = "0.1"
+
+[[bin]]
+name = "northstar-ymap-packer"
+path = "src/main.rs"

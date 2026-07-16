@@ -1,0 +1,8 @@
+[package]
+name = "northstar-devspace"
+version = "0.1.0"
+edition = "2021"
+description = "Native North Star DEV space validation and inspection CLI"
+license = "MIT"
+
+[dependencies]

@@ -1,0 +1,23 @@
+{
+  "runtimeTarget": {
+    "name": ".NETCoreApp,Version=v7.0",
+    "signature": ""
+  },
+  "compilationOptions": {},
+  "targets": {
+    ".NETCoreApp,Version=v7.0": {
+      "ddsinfo_host/1.2.1": {
+        "runtime": {
+          "ddsinfo_host.dll": {}
+        }
+      }
+    }
+  },
+  "libraries": {
+    "ddsinfo_host/1.2.1": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    }
+  }
+}

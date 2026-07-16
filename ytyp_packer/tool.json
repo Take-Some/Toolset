@@ -1,0 +1,43 @@
+{
+  "schema": "takesome.tool.v1",
+  "id": "northstar.ytyp_packer",
+  "version": "0.1.3",
+  "name": "North Star YTYP Packer",
+  "description": "XML-first Y-Type Properties tool: compiles .ytyp.xml source properties into runtime .ytyp properties assets and dumps/parses .ytyp back to readable XML.",
+  "kind": "rust-cli",
+  "root": ".",
+  "cargo_manifest": "Cargo.toml",
+  "install_path": "tools/exe/northstar-ytyp-packer.exe",
+  "default_args": ["compile", "--root", "$repo_root", "--all"],
+  "validation_args": ["validate", "--root", "$repo_root", "--all"],
+  "formats": [".ytyp", ".ytyp.xml"],
+  "content_kinds": ["y_type_properties", "asset_properties", "model_properties"],
+  "format_provider": {
+    "provider_id": "northstar.ytyp_packer",
+    "type_ids": ["asset.type.ytyp.properties"],
+    "can_read": true,
+    "can_write": true,
+    "can_inspect": true,
+    "can_validate": true,
+    "can_diff": true,
+    "can_preview": true,
+    "can_edit_schema": true,
+    "preview_surface": "tree",
+    "editor_schema": "northstar.schema.ytyp.properties.v1"
+  },
+  "capabilities": [
+    "asset.format.ytyp.read",
+    "asset.format.ytyp.write",
+    "asset.format.ytyp.inspect",
+    "asset.format.ytyp.validate",
+    "asset.format.ytyp.diff",
+    "asset.preview.tree",
+    "asset.editor.properties.edit_schema",
+    "assets.properties.ytyp_pack",
+    "assets.properties.ytyp_xml_dump",
+    "assets.properties.ytyp_inspect"
+  ],
+  "build_validation": true,
+  "safe_for_build": true,
+  "maturity": "native-dev"
+}

@@ -1,0 +1,87 @@
+{
+  "tool_id": "northstar.noesis.command_plane",
+  "display_name": "NOESIS Command Plane",
+  "owner": "NorthStar",
+  "category": "workspace",
+  "kind": "python_cli",
+  "location": "noesis",
+  "entrypoint": "python -m noesis",
+  "source_type": "first_party",
+  "lifecycle": "active",
+  "safety": "safe",
+  "auto_build": false,
+  "safe_for_build_validation": true,
+  "safe_to_auto_run": true,
+  "build": {
+    "system": "python"
+  },
+  "commands": [
+    {
+      "command_id": "registry-report",
+      "description": "Generate Suite/tooling registry reports."
+    },
+    {
+      "command_id": "registry-preflight",
+      "description": "Validate registries for build preflight."
+    },
+    {
+      "command_id": "observability",
+      "description": "Validate Suite observability outputs and recent run index."
+    },
+    {
+      "command_id": "suite-actions-list",
+      "description": "List descriptor Suite actions."
+    },
+    {
+      "command_id": "suite-actions-validate",
+      "description": "Validate descriptor Suite actions."
+    },
+    {
+      "command_id": "suite-bridge-menu-generate",
+      "description": "Generate bridge menu JSON from Suite actions."
+    },
+    {
+      "command_id": "tools-list",
+      "description": "List registered tools."
+    },
+    {
+      "command_id": "tools-validate",
+      "description": "Validate registered tools."
+    },
+    {
+      "command_id": "tools-doctor",
+      "description": "Run ToolRegistry diagnostics."
+    },
+    {
+      "command_id": "build-plugins",
+      "description": "Build and install runtime plugins."
+    },
+    {
+      "command_id": "build-importers",
+      "description": "Build importer toolchain."
+    },
+    {
+      "command_id": "run-game",
+      "description": "Synchronize plugins and run the game/runtime demo."
+    },
+    {
+      "command_id": "clean-workspace",
+      "description": "Clean generated workspace state."
+    },
+    {
+      "command_id": "pack-source",
+      "description": "Pack a clean source snapshot."
+    }
+  ],
+  "validation": {
+    "args": [
+      "--help"
+    ],
+    "expected_exit_code": 0
+  },
+  "artifacts": [],
+  "diagnostics": {
+    "log_domain": "tools.noesis",
+    "report_kind": "tool"
+  }
+}

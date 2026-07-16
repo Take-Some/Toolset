@@ -1,0 +1,58 @@
+{
+  "schema": "takesome.tool.v1",
+  "id": "northstar.ytd_packer",
+  "version": "0.3.1",
+  "name": "North Star YTD Packer",
+  "description": "Creates, parses, validates and extracts XML-free NEF8/YTD texture dictionaries backed by binary NETD payloads.",
+  "kind": "rust-cli",
+  "root": ".",
+  "cargo_manifest": "Cargo.toml",
+  "install_path": "tools/exe/northstar-ytd-packer.exe",
+  "default_args": [
+    "inspect",
+    "--input",
+    "$repo_root/EngineRepo/NewEngine/neocore2/assets/ui/icons/builtin_icons.ytd"
+  ],
+  "validation_args": [
+    "validate",
+    "--input",
+    "$repo_root/EngineRepo/NewEngine/neocore2/assets/ui/icons/builtin_icons.ytd"
+  ],
+  "formats": [
+    ".ytd"
+  ],
+  "content_kinds": [
+    "texture_dictionary"
+  ],
+  "format_provider": {
+    "provider_id": "northstar.ytd_packer",
+    "type_ids": [
+      "asset.type.ytd.texture_dictionary"
+    ],
+    "can_read": true,
+    "can_write": true,
+    "can_inspect": true,
+    "can_validate": true,
+    "can_diff": true,
+    "can_preview": true,
+    "can_edit_schema": true,
+    "preview_surface": "texture",
+    "editor_schema": "northstar.schema.ytd.texture_dictionary.v1"
+  },
+  "capabilities": [
+    "asset.format.ytd.read",
+    "asset.format.ytd.write",
+    "asset.format.ytd.inspect",
+    "asset.format.ytd.validate",
+    "asset.format.ytd.diff",
+    "asset.preview.texture",
+    "asset.editor.texture.edit_schema",
+    "assets.textures.ytd_pack",
+    "assets.textures.ytd_extract",
+    "assets.textures.ytd_inspect",
+    "validation.nef8_hash"
+  ],
+  "build_validation": true,
+  "safe_for_build": true,
+  "maturity": "native-dev"
+}

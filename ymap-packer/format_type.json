@@ -1,0 +1,17 @@
+{
+  "schema": "northstar.format_type.v1",
+  "type_id": "asset.type.ymap.map_data",
+  "label": "YMAP Map Definition",
+  "content_kind": "map_data",
+  "extensions": [".ymap", ".ymap.xml", ".ymap.json"],
+  "provider_id": "northstar.ymap_packer",
+  "can_read": true,
+  "can_write": true,
+  "can_inspect": true,
+  "can_validate": true,
+  "can_diff": true,
+  "can_preview": true,
+  "can_edit_schema": true,
+  "schema_id": "northstar.schema.ymap.map_definition.v1",
+  "preview_surface": "tree"
+}

@@ -1,0 +1,39 @@
+[package]
+name = "northstar-nepak-manager"
+version = "0.2.1"
+edition = "2021"
+build = "build.rs"
+description = "North Star clean .nepak VFS package manager/inspector/verifier"
+license = "MIT"
+
+[lib]
+name = "northstar_nepak_manager"
+path = "src/lib.rs"
+
+[dependencies]
+northstar-cli = { path = "../../shared/northstar_cli" }
+blake3 = "1.5"
+flate2 = "1.0"
+serde_json = "1.0"
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61.2", features = [
+    "Win32_Foundation",
+    "Win32_Graphics_Gdi",
+    "Win32_System_LibraryLoader",
+    "Win32_UI_Controls",
+    "Win32_UI_Controls_Dialogs",
+    "Win32_UI_WindowsAndMessaging",
+    "Win32_UI_Shell"
+] }
+
+[build-dependencies]
+winres = "0.1"
+
+[[bin]]
+name = "northstar-nepak-manager"
+path = "src/main.rs"
+
+[[bin]]
+name = "northstar-nepak-gui"
+path = "src/gui.rs"
