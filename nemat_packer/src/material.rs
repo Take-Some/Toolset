@@ -1,7 +1,9 @@
 use serde_json::{json, Value};
 use std::collections::{BTreeMap, BTreeSet};
 
-use crate::{args::CommonArgs, nef8};
+#[cfg(test)]
+use crate::args::CommonArgs;
+use crate::nef8;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct MaterialLibrary {
@@ -36,6 +38,7 @@ pub struct ParamBinding {
     pub value: String,
 }
 
+#[cfg(test)]
 pub fn xml_from_draft_args(cfg: &CommonArgs) -> Result<String, String> {
     let name = cfg
         .material
@@ -515,6 +518,7 @@ fn parse_f32(value: &str) -> Result<f32, String> {
         .map_err(|_| format!("invalid float value '{value}'"))
 }
 
+#[cfg(test)]
 fn split_key_value(raw: &str, flag: &str, expected: &str) -> Result<(String, String), String> {
     let (key, value) = raw
         .split_once('=')
@@ -525,6 +529,7 @@ fn split_key_value(raw: &str, flag: &str, expected: &str) -> Result<(String, Str
     Ok((key.trim().to_owned(), value.trim().to_owned()))
 }
 
+#[cfg(test)]
 fn split_name_type(raw: &str) -> Result<(String, String), String> {
     let (name, ty) = raw
         .split_once(':')
@@ -644,6 +649,7 @@ fn attr_value(open: &str, key: &str) -> Option<String> {
     None
 }
 
+#[cfg(test)]
 fn xml_escape(value: &str) -> String {
     value
         .replace('&', "&amp;")

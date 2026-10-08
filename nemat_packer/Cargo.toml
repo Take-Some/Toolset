@@ -3,7 +3,7 @@ name = "northstar-nemat-packer"
 version = "0.1.2"
 edition = "2021"
 build = "build.rs"
-description = "North Star XMLtype .nemat material library packer, inspector and graph tool"
+description = "Legacy NEMAT read/inspect/migration compatibility tool; YMAT is canonical"
 license = "MIT"
 
 [dependencies]

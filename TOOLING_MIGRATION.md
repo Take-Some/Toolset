@@ -1,11 +1,11 @@
 # Native Tooling Migration
 
-> [!NOTE] REQUEST NOTE — current pass
->  legacy tool identities are removed from the active workspace surface. Native tools are discovered through `tool.json` descriptors, cached under `.takesome/tools` during Script Env initialization, built through `tools build --safe`, and validated from descriptor-declared `validation_args`.
+> [!NOTE] Current migration state
+> **Current state:** legacy tool identities have been removed from the active workspace surface. Native tools are discovered through `tool.json` descriptors, cached under `.takesome/tools` during Script Env initialization, built through `tools build --safe`, and validated through descriptor-declared `validation_args`.
 >
->  next pass can deepen individual native capabilities, for example a full DDS cubemap converter or ListFile schema validator, without resurrecting old executable identities.
+> **Next step:** deepen individual native capabilities, such as a complete DDS cubemap converter or ListFile schema validator, without restoring retired executable identities.
 >
-> **Technical details (EN):** active commands: `takesome.py tools scan/list/doctor/build/run`, `takesome.py tools build --safe --validate-after-build`, `takesome.py validate-build`, `devTools.bat`. Cache: `.takesome/tools/tool-registry.json`.
+> **Technical details:** active commands are `takesome.py tools scan/list/doctor/build/run`, `takesome.py tools build --safe --validate-after-build`, `takesome.py validate-build`, and `devTools.bat`. The registry cache is `.takesome/tools/tool-registry.json`.
 
 ## Why this exists
 

@@ -1,0 +1,3 @@
+C:\Users\Aiden\Documents\Take Some\NorthStar-Suite\tools\toolsSrc\ddsinfo\publish\ddsinfo.dll
+C:\Users\Aiden\Documents\Take Some\NorthStar-Suite\tools\toolsSrc\ddsinfo\publish\ddsinfo.deps.json
+C:\Users\Aiden\Documents\Take Some\NorthStar-Suite\tools\toolsSrc\ddsinfo\publish\ddsinfo.pdb

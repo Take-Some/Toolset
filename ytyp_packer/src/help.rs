@@ -4,8 +4,8 @@ pub fn print_help() {
     println!("North Star YTYP Packer / Y-Type Properties tool");
     println!();
     println!("Canonical authoring source: *.ytyp.xml with Y-Type Properties XML.");
-    println!("Runtime asset: *.ytyp is the compiled properties document for one model/asset/type.");
-    println!("YTYP = Y-Type Properties. It is not a dictionary; files ending with 'd' are dictionaries (.ydd/.ytd/.neftd).");
+    println!("Runtime asset: *.ytyp is canonical NEF8 V2 (content_kind=YTYP/3) with XML as its domain body.");
+    println!("YTYP is registered by the engine as the archetype metadata ListFile domain; the NEF8 envelope and content-kind identity are engine-owned contracts.");
     println!();
     println!("Usage:");
     println!("  northstar-ytyp-packer compile --root <repo-or-asset-root> --input world/src/fps/tree.ytyp.xml --output world/fps/tree.ytyp");
@@ -29,8 +29,8 @@ pub fn print_help() {
     println!("  accepted-inputs                      Print accepted input/output contract.");
     println!("  version                              Print tool version.");
     println!();
-    println!("Accepted input files: *.ytyp.xml source properties; *.ytyp compiled properties assets for inspect/validate/dump");
-    println!("Produced output files: *.ytyp properties assets; XML dumps; JSON manifest/metadata/dependency projections");
+    println!("Accepted input files: *.ytyp.xml source properties; *.ytyp canonical NEF8 assets for inspect/validate/dump");
+    println!("Produced output files: *.ytyp NEF8 runtime assets; XML dumps; JSON manifest/metadata/dependency projections");
     println!(
         "Output modes: default production output; add --debug or --verbose for debug diagnostics."
     );

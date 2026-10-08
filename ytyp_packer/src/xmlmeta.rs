@@ -1,4 +1,73 @@
+const PROPERTIES_SCHEMA_ID: &str = "newengine.ytyp.properties.v1";
 use serde_json::{json, Value};
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DependencyRecord {
+    pub reference: String,
+    pub role: String,
+    pub domain: String,
+    pub required: bool,
+}
+
+pub fn entry_kind(xml: &str) -> String {
+    root_attr(xml, "entry_kind")
+        .or_else(|| root_attr(xml, "entryKind"))
+        .filter(|value| !value.trim().is_empty())
+        .unwrap_or_else(|| "archetype_definition".to_owned())
+}
+
+pub fn dependency_records(xml: &str) -> Vec<DependencyRecord> {
+    let mut out = Vec::new();
+    let mut search = 0usize;
+    while let Some(pos_rel) = xml[search..].find('<') {
+        let pos = search + pos_rel;
+        let Some(open_end_rel) = xml[pos..].find('>') else {
+            break;
+        };
+        let open_end = pos + open_end_rel;
+        let open = &xml[pos..=open_end];
+        let tag = open
+            .trim_start_matches('<')
+            .trim_start()
+            .split(|c: char| c.is_ascii_whitespace() || c == '>' || c == '/')
+            .next()
+            .unwrap_or_default();
+        if tag == "Dependency" {
+            let reference = attr_value(open, "reference")
+                .or_else(|| attr_value(open, "ref"))
+                .unwrap_or_default();
+            if !reference.trim().is_empty() {
+                let role = attr_value(open, "role").unwrap_or_else(|| "dependency".to_owned());
+                let domain = attr_value(open, "domain").unwrap_or_default();
+                let required = attr_value(open, "required")
+                    .map(|value| {
+                        !matches!(
+                            value.trim().to_ascii_lowercase().as_str(),
+                            "false" | "0" | "no"
+                        )
+                    })
+                    .unwrap_or(true);
+                out.push(DependencyRecord {
+                    reference,
+                    role,
+                    domain,
+                    required,
+                });
+            }
+        }
+        search = open_end + 1;
+    }
+    out.sort_by(|a, b| {
+        (&a.reference, &a.role, &a.domain, a.required).cmp(&(
+            &b.reference,
+            &b.role,
+            &b.domain,
+            b.required,
+        ))
+    });
+    out.dedup();
+    out
+}
 
 pub fn validate_metadata_xml(xml: &str, source_ref: &str) -> Result<Vec<String>, String> {
     let root =
@@ -9,9 +78,9 @@ pub fn validate_metadata_xml(xml: &str, source_ref: &str) -> Result<Vec<String>,
         ));
     }
     let schema = root_attr(xml, "schema").unwrap_or_default();
-    if schema != "newengine.ytyp.properties.v1" {
+    if schema != PROPERTIES_SCHEMA_ID {
         return Err(format!(
-            "{source_ref}: .ytyp properties schema must be newengine.ytyp.properties.v1; actual='{schema}'"
+            "{source_ref}: .ytyp properties schema must be {PROPERTIES_SCHEMA_ID}; actual='{schema}'"
         ));
     }
     let mut warnings = Vec::new();
@@ -175,7 +244,7 @@ fn looks_like_asset_ref(value: &str) -> bool {
         || v.contains(".ydd")
         || v.contains(".ytyp")
         || v.contains(".ymap")
-        || v.contains(".nemat")
+        || v.contains(".ymat")
         || v.contains(".neui")
         || v.contains(".ybn")
         || v.contains(".ycol")
@@ -310,5 +379,33 @@ mod tests {
         assert!(validate_metadata_xml(xml, "x").is_ok());
         assert_eq!(entry_names(xml), vec!["foo"]);
         assert_eq!(dependencies(xml), vec!["assets/a.ytd@bar"]);
+    }
+
+    #[test]
+    fn ycd_clip_dependencies_are_preserved() {
+        let xml = r#"<YtypProperties schema="newengine.ytyp.properties.v1" name="abby"><Dependencies><Dependency reference="animations/characters/abby/idle.ycd@idle" role="animation/idle" domain="engine.animation" required="true" /></Dependencies></YtypProperties>"#;
+        let records = dependency_records(xml);
+        assert_eq!(records.len(), 1);
+        assert_eq!(
+            records[0].reference,
+            "animations/characters/abby/idle.ycd@idle"
+        );
+        assert_eq!(records[0].domain, "engine.animation");
+        assert_eq!(
+            dependencies(xml),
+            vec!["animations/characters/abby/idle.ycd@idle"]
+        );
+    }
+
+    #[test]
+    fn dependency_records_preserve_role_domain_and_required() {
+        let xml = r#"<YtypProperties schema="newengine.ytyp.properties.v1" name="foo"><Dependencies><Dependency reference="models/foo.ydd@foo" role="render/drawable" domain="engine.model" required="true" /><Dependency reference="materials/foo.ymat@foo" role="render/material" domain="engine.materials" required="false" /></Dependencies></YtypProperties>"#;
+        let records = dependency_records(xml);
+        assert_eq!(records.len(), 2);
+        assert_eq!(records[0].reference, "materials/foo.ymat@foo");
+        assert!(!records[0].required);
+        assert_eq!(records[1].role, "render/drawable");
+        assert_eq!(records[1].domain, "engine.model");
+        assert!(records[1].required);
     }
 }

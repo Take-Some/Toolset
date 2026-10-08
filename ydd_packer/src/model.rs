@@ -123,7 +123,9 @@ pub fn make_mesh(
     DrawableMesh {
         name,
         material_ref,
+        inline_material: None,
         vertices,
+        skin: None,
         indices,
         bounds,
     }
@@ -135,6 +137,7 @@ pub fn make_model(name: String, source_path: &Path, meshes: Vec<DrawableMesh>) -
         name,
         source_path: source_path.to_string_lossy().replace('\\', "/"),
         properties_ref: None,
+        skin_source_to_model: None,
         meshes,
         bounds,
     }

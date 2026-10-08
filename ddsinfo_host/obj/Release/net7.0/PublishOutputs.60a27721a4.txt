@@ -1,0 +1,5 @@
+C:\Users\Aiden\Documents\Take Some\NorthStar-Suite\tools\toolsSrc\ddsinfo_host\publish\ddsinfo_host.exe
+C:\Users\Aiden\Documents\Take Some\NorthStar-Suite\tools\toolsSrc\ddsinfo_host\publish\ddsinfo_host.dll
+C:\Users\Aiden\Documents\Take Some\NorthStar-Suite\tools\toolsSrc\ddsinfo_host\publish\ddsinfo_host.deps.json
+C:\Users\Aiden\Documents\Take Some\NorthStar-Suite\tools\toolsSrc\ddsinfo_host\publish\ddsinfo_host.runtimeconfig.json
+C:\Users\Aiden\Documents\Take Some\NorthStar-Suite\tools\toolsSrc\ddsinfo_host\publish\ddsinfo_host.pdb

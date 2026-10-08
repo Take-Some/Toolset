@@ -11,15 +11,22 @@ use northstar_nef8::{
 use serde_json::json;
 
 use crate::drawable::{
-    stable_hash64, DrawableDictionary, DrawableModel, Vertex, CONTENT_KIND_YDD_DRAWABLE_DICTIONARY,
+    stable_hash64, DrawableDictionary, DrawableModel, SkinVertex, Vertex,
+    CONTENT_KIND_YDD_DRAWABLE_DICTIONARY,
 };
 
-const BODY_SCHEMA_VERSION: u32 = 2;
+use newengine_asset_format_nef8::ydd_binary::{
+    decode_ydd_binary_body, encode_ydd_binary_body, YddBinaryDocument, YddBinaryEntry,
+    YddBinaryMesh, YddBinarySkinVertex, YddBinaryVertex, YDD_BINARY_ENCODING,
+    YDD_BINARY_SCHEMA_VERSION as BODY_SCHEMA_VERSION,
+    YDD_BINARY_SCHEMA_VERSION_V2 as BODY_SCHEMA_VERSION_V2,
+    YDD_BINARY_SCHEMA_VERSION_V3 as BODY_SCHEMA_VERSION_V3,
+    YDD_BINARY_SCHEMA_VERSION_V4 as BODY_SCHEMA_VERSION_V4,
+};
 
 const BODY_HEADER_LEN: usize = 40;
 
 const ENTRY_RECORD_LEN: usize = 80;
-
 pub type Nef8Header = Header;
 
 #[derive(Debug, Clone)]
@@ -51,13 +58,16 @@ pub struct ParsedDrawableDictionary {
 pub fn pack_ydd(dict: &DrawableDictionary, _logical_path: &str) -> Result<Vec<u8>, String> {
     validate_dictionary(dict)?;
     debug_assert_eq!(CONTENT_KIND_YDD_DRAWABLE_DICTIONARY, TYPE_YDD);
-    let body = encode_body(dict)?;
+    // First-party producers always emit the canonical YDD body schema.
+    // V2-V4 remain reader-only migration inputs.
+    let body_schema_version = BODY_SCHEMA_VERSION;
+    let body = encode_ydd_binary_body(&to_binary_document(dict)?)?;
     let compressed = deflate(&body)?;
     let body_hash =
         (body.len() >= FULL_HASH_BODY_THRESHOLD).then(|| *blake3::hash(&body).as_bytes());
     encode(EncodeRequest {
         content_kind: CONTENT_KIND_YDD_DRAWABLE_DICTIONARY,
-        content_schema_version: BODY_SCHEMA_VERSION as u16,
+        content_schema_version: body_schema_version as u16,
         entry_count: dict.models.len().min(u32::MAX as usize) as u32,
         additional_flags: 0,
         min_size_class: 4,
@@ -68,6 +78,18 @@ pub fn pack_ydd(dict: &DrawableDictionary, _logical_path: &str) -> Result<Vec<u8
         stable_file_id: None,
         import_settings_hash: None,
     })
+}
+
+pub fn decode_dictionary(bytes: &[u8], file_name: &str) -> Result<DrawableDictionary, String> {
+    let header = parse_header(bytes)?;
+    if header.content_kind != CONTENT_KIND_YDD_DRAWABLE_DICTIONARY {
+        return Err(format!(
+            "NEF8 content_kind={} is not ydd drawable_dictionary ({})",
+            header.content_kind, CONTENT_KIND_YDD_DRAWABLE_DICTIONARY
+        ));
+    }
+    let body = decode_body(bytes, &header)?;
+    decode_binary_body_dictionary(&body, file_name)
 }
 
 pub fn parse_ydd(bytes: &[u8], file_name: &str) -> Result<ParsedDrawableDictionary, String> {
@@ -154,7 +176,7 @@ pub fn inspect_json(bytes: &[u8], file_name: &str) -> Result<serde_json::Value, 
 
         },
 
-        "body_encoding": "newengine.ydd.binary_mesh",
+        "body_encoding": YDD_BINARY_ENCODING,
         "drawable_dictionary": { "model_count": parsed.entries.len(), "entries": entries }
 
     }))
@@ -254,6 +276,21 @@ pub fn validate_dictionary(dict: &DrawableDictionary) -> Result<(), String> {
         if model.meshes.is_empty() {
             return Err(format!("YDD model '{}' has no meshes", model.name));
         }
+        let has_skin = model.meshes.iter().any(|mesh| mesh.skin.is_some());
+        if has_skin && model.skin_source_to_model.is_none() {
+            return Err(format!(
+                "YDD model '{}' contains skinned meshes but no source-to-model transform",
+                model.name
+            ));
+        }
+        if let Some(matrix) = model.skin_source_to_model {
+            if matrix.iter().any(|value| !value.is_finite()) {
+                return Err(format!(
+                    "YDD model '{}' source-to-model transform contains NaN/Inf",
+                    model.name
+                ));
+            }
+        }
 
         for mesh in &model.meshes {
             if mesh.vertices.is_empty() {
@@ -270,8 +307,17 @@ pub fn validate_dictionary(dict: &DrawableDictionary) -> Result<(), String> {
                 ));
             }
 
+            if mesh.material_ref.is_some() && mesh.inline_material.is_some() {
+                return Err(format!(
+                    "YDD model '{}' mesh '{}' cannot contain both material_ref and inline_material",
+                    model.name, mesh.name
+                ));
+            }
             if let Some(material) = &mesh.material_ref {
                 crate::drawable::validate_material_ref(material)?;
+            }
+            if let Some(material) = &mesh.inline_material {
+                crate::drawable::validate_inline_material(material)?;
             }
 
             for v in &mesh.vertices {
@@ -280,6 +326,41 @@ pub fn validate_dictionary(dict: &DrawableDictionary) -> Result<(), String> {
                         return Err(format!(
                             "YDD model '{}' contains NaN/Inf vertex data",
                             model.name
+                        ));
+                    }
+                }
+            }
+            if let Some(skin) = &mesh.skin {
+                if skin.len() != mesh.vertices.len() {
+                    return Err(format!(
+                        "YDD model '{}' mesh '{}' skin count mismatch vertices={} skin={}",
+                        model.name,
+                        mesh.name,
+                        mesh.vertices.len(),
+                        skin.len()
+                    ));
+                }
+                for (vertex_index, skin_vertex) in skin.iter().enumerate() {
+                    if skin_vertex
+                        .weights
+                        .iter()
+                        .chain(skin_vertex.weights_extra.iter())
+                        .any(|value| !value.is_finite() || *value < 0.0)
+                    {
+                        return Err(format!(
+                            "YDD model '{}' mesh '{}' has invalid skin weights vertex={vertex_index}",
+                            model.name, mesh.name
+                        ));
+                    }
+                    let sum = skin_vertex
+                        .weights
+                        .iter()
+                        .chain(skin_vertex.weights_extra.iter())
+                        .sum::<f32>();
+                    if !sum.is_finite() || (sum - 1.0).abs() > 0.01 {
+                        return Err(format!(
+                            "YDD model '{}' mesh '{}' skin weights are not normalized vertex={vertex_index} sum={sum}",
+                            model.name, mesh.name
                         ));
                     }
                 }
@@ -301,160 +382,75 @@ pub fn body_is_binary_ydd(bytes: &[u8]) -> Result<bool, String> {
     {
         return Ok(false);
     }
-    Ok(body.len() >= BODY_HEADER_LEN && read_u32(&body, 0)? == BODY_SCHEMA_VERSION)
+    if body.len() < BODY_HEADER_LEN {
+        return Ok(false);
+    }
+    let version = read_u32(&body, 0)?;
+    Ok(matches!(
+        version,
+        BODY_SCHEMA_VERSION_V2
+            | BODY_SCHEMA_VERSION_V3
+            | BODY_SCHEMA_VERSION_V4
+            | BODY_SCHEMA_VERSION
+    ))
 }
 
 fn decode_binary_body_dictionary(
     body: &[u8],
     file_name: &str,
 ) -> Result<DrawableDictionary, String> {
-    if body.len() < BODY_HEADER_LEN {
-        return Err(format!("YDD binary body too small: {}", body.len()));
-    }
-    let version = read_u32(body, 0)?;
-    if version != BODY_SCHEMA_VERSION {
-        return Err(format!("unsupported YDD body schema version {version}"));
-    }
-    let entry_count = read_u32(body, 4)? as usize;
-    let table_offset = read_u64(body, 8)? as usize;
-    let string_offset = read_u64(body, 16)? as usize;
-    let string_len = read_u64(body, 24)? as usize;
-    let payload_offset = read_u64(body, 32)? as usize;
-    if table_offset
-        .checked_add(entry_count * ENTRY_RECORD_LEN)
-        .ok_or("YDD entry table range overflow")?
-        > body.len()
-    {
-        return Err("YDD entry table outside body".to_owned());
-    }
-    if string_offset
-        .checked_add(string_len)
-        .ok_or("YDD string table range overflow")?
-        > body.len()
-    {
-        return Err("YDD string table outside body".to_owned());
-    }
-    if payload_offset > body.len() {
-        return Err("YDD payload offset outside body".to_owned());
-    }
-    let strings = &body[string_offset..string_offset + string_len];
-    let mut models = Vec::with_capacity(entry_count);
-    for i in 0..entry_count {
-        let o = table_offset + i * ENTRY_RECORD_LEN;
-        let name = read_string(strings, read_u32(body, o + 8)?)?;
-        let source_path = read_string(strings, read_u32(body, o + 12)?)
-            .unwrap_or_else(|_| normalize_logical_path(file_name));
-        let properties_offset = read_u32(body, o + 32)?;
-        let properties_ref = if properties_offset == u32::MAX {
-            None
-        } else {
-            Some(read_string(strings, properties_offset)?)
-        };
-        let payload_start = read_u64(body, o + 64)? as usize;
-        let payload_len = read_u64(body, o + 72)? as usize;
-        if payload_start < payload_offset {
-            return Err(format!(
-                "YDD entry '{}' payload starts before payload table",
-                name
-            ));
-        }
-        let payload_end = payload_start
-            .checked_add(payload_len)
-            .ok_or("YDD entry payload range overflow")?;
-        if payload_end > body.len() {
-            return Err(format!("YDD entry '{}' payload outside body", name));
-        }
-        let mut cursor = payload_start;
-        let mesh_count = read_u32(body, cursor)? as usize;
-        cursor += 8;
-        let mut meshes = Vec::with_capacity(mesh_count);
-        for mesh_index in 0..mesh_count {
-            if cursor + 40 > payload_end {
-                return Err(format!(
-                    "YDD entry '{}' mesh {} header truncated",
-                    name, mesh_index
-                ));
-            }
-            let mesh_name_offset = read_u32(body, cursor)?;
-            cursor += 4;
-            let material_offset = read_u32(body, cursor)?;
-            cursor += 4;
-            let vertex_count = read_u32(body, cursor)? as usize;
-            cursor += 4;
-            let index_count = read_u32(body, cursor)? as usize;
-            cursor += 4;
-            let bounds_min = read_f32_array3(body, cursor)?;
-            cursor += 12;
-            let bounds_max = read_f32_array3(body, cursor)?;
-            cursor += 12;
-            let mesh_name = read_string(strings, mesh_name_offset)
-                .unwrap_or_else(|_| format!("mesh_{mesh_index}"));
-            let material_ref = if material_offset == u32::MAX {
-                None
-            } else {
-                Some(read_string(strings, material_offset)?)
-            };
-            let vertex_bytes = vertex_count
-                .checked_mul(32)
-                .ok_or("YDD vertex byte range overflow")?;
-            if cursor
-                .checked_add(vertex_bytes)
-                .ok_or("YDD vertex range overflow")?
-                > payload_end
-            {
-                return Err(format!(
-                    "YDD entry '{}' mesh '{}' vertices outside payload",
-                    name, mesh_name
-                ));
-            }
-            let mut vertices = Vec::with_capacity(vertex_count);
-            for _ in 0..vertex_count {
-                let position = read_f32_array3(body, cursor)?;
-                cursor += 12;
-                let normal = read_f32_array3(body, cursor)?;
-                cursor += 12;
-                let uv0 = [read_f32(body, cursor)?, read_f32(body, cursor + 4)?];
-                cursor += 8;
-                vertices.push(Vertex {
-                    position,
-                    normal,
-                    uv0,
-                });
-            }
-            let index_bytes = index_count
-                .checked_mul(4)
-                .ok_or("YDD index byte range overflow")?;
-            if cursor
-                .checked_add(index_bytes)
-                .ok_or("YDD index range overflow")?
-                > payload_end
-            {
-                return Err(format!(
-                    "YDD entry '{}' mesh '{}' indices outside payload",
-                    name, mesh_name
-                ));
-            }
-            let mut indices = Vec::with_capacity(index_count);
-            for _ in 0..index_count {
-                indices.push(read_u32(body, cursor)?);
-                cursor += 4;
-            }
+    let document = decode_ydd_binary_body(body)
+        .map_err(|error| format!("YDD binary body decode failed: {error}"))?;
+    let mut models = Vec::with_capacity(document.entries.len());
+    for entry in document.entries {
+        let mut meshes = Vec::with_capacity(entry.meshes.len());
+        for source_mesh in entry.meshes {
+            let vertices = source_mesh
+                .vertices
+                .into_iter()
+                .map(|vertex| Vertex {
+                    position: vertex.position,
+                    normal: vertex.normal,
+                    uv0: vertex.uv0,
+                })
+                .collect::<Vec<_>>();
+            let skin = source_mesh.skin.map(|stream| {
+                stream
+                    .into_iter()
+                    .map(|vertex| SkinVertex {
+                        joints: vertex.joints,
+                        weights: vertex.weights,
+                        joints_extra: vertex.joints_extra,
+                        weights_extra: vertex.weights_extra,
+                    })
+                    .collect::<Vec<_>>()
+            });
             meshes.push(crate::drawable::DrawableMesh {
-                name: mesh_name,
-                material_ref,
+                name: source_mesh.name,
+                material_ref: source_mesh.material_ref,
+                inline_material: source_mesh.inline_material,
                 vertices,
-                indices,
+                skin,
+                indices: source_mesh.indices,
                 bounds: crate::drawable::Bounds3 {
-                    min: bounds_min,
-                    max: bounds_max,
+                    min: source_mesh.bounds_min,
+                    max: source_mesh.bounds_max,
                 },
             });
         }
-        let bounds = crate::drawable::recompute_model_bounds(&meshes);
+        let bounds = crate::drawable::Bounds3 {
+            min: entry.bounds_min,
+            max: entry.bounds_max,
+        };
         models.push(DrawableModel {
-            name,
-            source_path,
-            properties_ref,
+            name: entry.name,
+            source_path: if entry.source_path.trim().is_empty() {
+                normalize_logical_path(file_name)
+            } else {
+                entry.source_path
+            },
+            properties_ref: entry.properties_ref,
+            skin_source_to_model: entry.skin_source_to_model,
             meshes,
             bounds,
         });
@@ -462,119 +458,65 @@ fn decode_binary_body_dictionary(
     Ok(DrawableDictionary::new(models))
 }
 
-fn encode_body(dict: &DrawableDictionary) -> Result<Vec<u8>, String> {
-    let entry_count = dict.models.len();
-
-    let entry_table_offset = BODY_HEADER_LEN;
-
-    let string_table_offset = entry_table_offset + entry_count * ENTRY_RECORD_LEN;
-
-    let mut strings = Vec::<u8>::new();
-
-    let mut payloads = Vec::<Vec<u8>>::new();
-
-    let mut records = Vec::<EntryBuildRecord>::new();
-
-    for model in &dict.models {
-        let name_offset = push_string(&mut strings, &model.name);
-
-        let source_offset = push_string(&mut strings, &model.source_path);
-        let properties_offset = model
-            .properties_ref
-            .as_deref()
-            .map(|value| push_string(&mut strings, value))
-            .unwrap_or(u32::MAX);
-
-        let mut payload = Vec::new();
-
-        write_model_payload(&mut payload, model, &mut strings)?;
-
-        records.push(EntryBuildRecord {
-            name: model.name.clone(),
-            name_offset,
-            source_offset,
-            properties_offset,
-
-            mesh_count: model.meshes.len() as u32,
-
-            vertex_count: model.meshes.iter().map(|m| m.vertices.len() as u32).sum(),
-
-            index_count: model.meshes.iter().map(|m| m.indices.len() as u32).sum(),
-
-            material_count: model.meshes.len() as u32,
-
-            bounds_min: model.bounds.min,
-            bounds_max: model.bounds.max,
-
-            payload_len: payload.len() as u64,
-        });
-
-        payloads.push(payload);
-    }
-
-    let payload_offset = string_table_offset + strings.len();
-
-    let payload_len: usize = payloads.iter().map(|p| p.len()).sum();
-
-    let mut out = Vec::with_capacity(payload_offset + payload_len);
-
-    write_u32_vec(&mut out, BODY_SCHEMA_VERSION);
-
-    write_u32_vec(&mut out, entry_count as u32);
-
-    write_u64_vec(&mut out, entry_table_offset as u64);
-
-    write_u64_vec(&mut out, string_table_offset as u64);
-
-    write_u64_vec(&mut out, strings.len() as u64);
-
-    write_u64_vec(&mut out, payload_offset as u64);
-
-    let mut running_payload_offset = payload_offset as u64;
-
-    for record in &records {
-        write_u64_vec(&mut out, stable_hash64(&record.name));
-
-        write_u32_vec(&mut out, record.name_offset);
-
-        write_u32_vec(&mut out, record.source_offset);
-
-        write_u32_vec(&mut out, record.mesh_count);
-
-        write_u32_vec(&mut out, record.vertex_count);
-
-        write_u32_vec(&mut out, record.index_count);
-
-        write_u32_vec(&mut out, record.material_count);
-
-        write_u32_vec(&mut out, record.properties_offset);
-
-        write_f32_array(&mut out, record.bounds_min);
-
-        write_f32_array(&mut out, record.bounds_max);
-
-        write_u32_vec(&mut out, 0);
-
-        // ENTRY_RECORD_LEN is 80. The parser expects payload_offset at +64 and payload_len at +72.
-
-        // Keep exactly one reserved u32 after bounds; a second one shifts payload fields and corrupts self-parse.
-
-        write_u64_vec(&mut out, running_payload_offset);
-
-        write_u64_vec(&mut out, record.payload_len);
-
-        running_payload_offset += record.payload_len;
-    }
-
-    debug_assert_eq!(out.len(), string_table_offset);
-
-    out.extend_from_slice(&strings);
-
-    for payload in payloads {
-        out.extend_from_slice(&payload);
-    }
-
-    Ok(out)
+fn to_binary_document(dict: &DrawableDictionary) -> Result<YddBinaryDocument, String> {
+    let entries = dict
+        .models
+        .iter()
+        .map(|model| {
+            let meshes = model
+                .meshes
+                .iter()
+                .map(|mesh| {
+                    if mesh.material_ref.is_some() && mesh.inline_material.is_some() {
+                        return Err(format!(
+                            "YDD model '{}' mesh '{}' cannot contain both external and inline material",
+                            model.name, mesh.name
+                        ));
+                    }
+                    let vertices = mesh
+                        .vertices
+                        .iter()
+                        .map(|vertex| YddBinaryVertex {
+                            position: vertex.position,
+                            normal: vertex.normal,
+                            uv0: vertex.uv0,
+                        })
+                        .collect();
+                    let skin = mesh.skin.as_ref().map(|stream| {
+                        stream
+                            .iter()
+                            .map(|vertex| YddBinarySkinVertex {
+                                joints: vertex.joints,
+                                weights: vertex.weights,
+                                joints_extra: vertex.joints_extra,
+                                weights_extra: vertex.weights_extra,
+                            })
+                            .collect()
+                    });
+                    Ok(YddBinaryMesh {
+                        name: mesh.name.clone(),
+                        material_ref: mesh.material_ref.clone(),
+                        inline_material: mesh.inline_material.clone(),
+                        bounds_min: mesh.bounds.min,
+                        bounds_max: mesh.bounds.max,
+                        vertices,
+                        skin,
+                        indices: mesh.indices.clone(),
+                    })
+                })
+                .collect::<Result<Vec<_>, String>>()?;
+            Ok(YddBinaryEntry {
+                name: model.name.clone(),
+                source_path: model.source_path.clone(),
+                properties_ref: model.properties_ref.clone(),
+                bounds_min: model.bounds.min,
+                bounds_max: model.bounds.max,
+                skin_source_to_model: model.skin_source_to_model,
+                meshes,
+            })
+        })
+        .collect::<Result<Vec<_>, String>>()?;
+    Ok(YddBinaryDocument { entries })
 }
 
 fn parse_body_index(body: &[u8], file_name: &str) -> Result<Vec<ResidentEntryInfo>, String> {
@@ -584,8 +526,16 @@ fn parse_body_index(body: &[u8], file_name: &str) -> Result<Vec<ResidentEntryInf
 
     let version = read_u32(body, 0)?;
 
-    if version != BODY_SCHEMA_VERSION {
-        return Err(format!("unsupported YDD body schema version {version}"));
+    if !matches!(
+        version,
+        BODY_SCHEMA_VERSION_V2
+            | BODY_SCHEMA_VERSION_V3
+            | BODY_SCHEMA_VERSION_V4
+            | BODY_SCHEMA_VERSION
+    ) {
+        return Err(format!(
+            "unsupported YDD body schema version {version}; supported=[{BODY_SCHEMA_VERSION_V2},{BODY_SCHEMA_VERSION_V3},{BODY_SCHEMA_VERSION_V4},{BODY_SCHEMA_VERSION}]"
+        ));
     }
 
     let entry_count = read_u32(body, 4)? as usize;
@@ -668,87 +618,6 @@ fn parse_body_index(body: &[u8], file_name: &str) -> Result<Vec<ResidentEntryInf
     Ok(entries)
 }
 
-fn write_model_payload(
-    out: &mut Vec<u8>,
-    model: &DrawableModel,
-    strings: &mut Vec<u8>,
-) -> Result<(), String> {
-    write_u32_vec(out, model.meshes.len() as u32);
-
-    write_u32_vec(out, 0);
-
-    for mesh in &model.meshes {
-        let name_offset = push_string(strings, &mesh.name);
-
-        let material_offset = mesh
-            .material_ref
-            .as_ref()
-            .map(|m| push_string(strings, m))
-            .unwrap_or(u32::MAX);
-
-        write_u32_vec(out, name_offset);
-
-        write_u32_vec(out, material_offset);
-
-        write_u32_vec(out, mesh.vertices.len() as u32);
-
-        write_u32_vec(out, mesh.indices.len() as u32);
-
-        write_f32_array(out, mesh.bounds.min);
-
-        write_f32_array(out, mesh.bounds.max);
-
-        for vertex in &mesh.vertices {
-            write_vertex(out, *vertex);
-        }
-
-        for idx in &mesh.indices {
-            write_u32_vec(out, *idx);
-        }
-    }
-
-    Ok(())
-}
-
-struct EntryBuildRecord {
-    name: String,
-    name_offset: u32,
-    source_offset: u32,
-    properties_offset: u32,
-    mesh_count: u32,
-    vertex_count: u32,
-    index_count: u32,
-    material_count: u32,
-    bounds_min: [f32; 3],
-    bounds_max: [f32; 3],
-    payload_len: u64,
-}
-
-fn write_vertex(out: &mut Vec<u8>, v: Vertex) {
-    write_f32_array(out, v.position);
-    write_f32_array(out, v.normal);
-    write_f32_array2(out, v.uv0);
-}
-
-fn write_f32_array(out: &mut Vec<u8>, values: [f32; 3]) {
-    for value in values {
-        out.extend_from_slice(&value.to_le_bytes());
-    }
-}
-
-fn write_f32_array2(out: &mut Vec<u8>, values: [f32; 2]) {
-    for value in values {
-        out.extend_from_slice(&value.to_le_bytes());
-    }
-}
-
-fn push_string(strings: &mut Vec<u8>, value: &str) -> u32 {
-    let offset = strings.len() as u32;
-    strings.extend_from_slice(value.as_bytes());
-    strings.push(0);
-    offset
-}
-
 fn read_string(strings: &[u8], offset: u32) -> Result<String, String> {
     let start = offset as usize;
     if start >= strings.len() {
@@ -784,14 +653,6 @@ pub fn normalize_logical_path(value: &str) -> String {
         .to_ascii_lowercase()
 }
 
-fn write_u32_vec(out: &mut Vec<u8>, value: u32) {
-    out.extend_from_slice(&value.to_le_bytes());
-}
-
-fn write_u64_vec(out: &mut Vec<u8>, value: u64) {
-    out.extend_from_slice(&value.to_le_bytes());
-}
-
 fn read_u32(bytes: &[u8], offset: usize) -> Result<u32, String> {
     let s = bytes
         .get(offset..offset + 4)
@@ -806,19 +667,4 @@ fn read_u64(bytes: &[u8], offset: usize) -> Result<u64, String> {
     Ok(u64::from_le_bytes([
         s[0], s[1], s[2], s[3], s[4], s[5], s[6], s[7],
     ]))
-}
-
-fn read_f32(bytes: &[u8], offset: usize) -> Result<f32, String> {
-    let s = bytes
-        .get(offset..offset + 4)
-        .ok_or_else(|| format!("truncated f32 at {offset}"))?;
-    Ok(f32::from_le_bytes([s[0], s[1], s[2], s[3]]))
-}
-
-fn read_f32_array3(bytes: &[u8], offset: usize) -> Result<[f32; 3], String> {
-    Ok([
-        read_f32(bytes, offset)?,
-        read_f32(bytes, offset + 4)?,
-        read_f32(bytes, offset + 8)?,
-    ])
 }

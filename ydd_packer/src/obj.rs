@@ -33,12 +33,18 @@ pub fn import_obj(
         let mut parts = line.split_whitespace();
         match parts.next().unwrap_or("") {
             "o" | "g" => {
-                // OBJ groups are authoring labels, not hard draw-call boundaries.
-                // Runtime batching stays sane if we split only on usemtl/material.
-                if vertices.is_empty() {
-                    if let Some(name) = parts.next() {
-                        mesh_name = sanitize_local_name(name);
-                    }
+                // OBJ object/group statements establish source mesh identity. Flush the previous
+                // group before changing its name; otherwise every later group inherits the first
+                // label when `g` precedes `usemtl` (the canonical NorthStar level-export layout).
+                flush_mesh(
+                    &mut meshes,
+                    &mesh_name,
+                    &current_material,
+                    &mut vertices,
+                    &mut indices,
+                );
+                if let Some(name) = parts.next() {
+                    mesh_name = sanitize_local_name(name);
                 }
             }
             "usemtl" => {
@@ -104,6 +110,12 @@ pub fn import_obj(
                     ));
                 }
                 for tri in triangulate_fan(&face) {
+                    // OBJ NORMAL is optional. A constant +Y fallback is only correct
+                    // for horizontal faces and makes side-face lighting depend on the
+                    // camera/view vector. Generate the geometric triangle normal when
+                    // the source omits vn so packed YDD lighting stays camera-invariant.
+                    let generated_normal =
+                        triangle_face_normal(&tri, &positions).unwrap_or_else(default_normal);
                     for fv in tri {
                         let pos = positions.get(fv.position).copied().ok_or_else(|| {
                             format!(
@@ -119,7 +131,7 @@ pub fn import_obj(
                         let normal = fv
                             .normal
                             .and_then(|i| normals.get(i).copied())
-                            .unwrap_or_else(default_normal);
+                            .unwrap_or(generated_normal);
                         vertices.push(Vertex {
                             position: pos,
                             normal,
@@ -219,6 +231,25 @@ fn triangulate_fan(face: &[FaceVertex]) -> Vec<[FaceVertex; 3]> {
     out
 }
 
+fn triangle_face_normal(tri: &[FaceVertex; 3], positions: &[[f32; 3]]) -> Option<[f32; 3]> {
+    let a = *positions.get(tri[0].position)?;
+    let b = *positions.get(tri[1].position)?;
+    let c = *positions.get(tri[2].position)?;
+    let ab = [b[0] - a[0], b[1] - a[1], b[2] - a[2]];
+    let ac = [c[0] - a[0], c[1] - a[1], c[2] - a[2]];
+    let n = [
+        ab[1] * ac[2] - ab[2] * ac[1],
+        ab[2] * ac[0] - ab[0] * ac[2],
+        ab[0] * ac[1] - ab[1] * ac[0],
+    ];
+    let len2 = n[0] * n[0] + n[1] * n[1] + n[2] * n[2];
+    if !len2.is_finite() || len2 <= 1.0e-20 {
+        return None;
+    }
+    let inv_len = len2.sqrt().recip();
+    Some([n[0] * inv_len, n[1] * inv_len, n[2] * inv_len])
+}
+
 fn parse_index(
     raw: &str,
     len: usize,
@@ -274,7 +305,7 @@ fn sanitize_local_name(value: &str) -> String {
 }
 
 fn material_to_ref(name: &str, fallback: &Option<String>) -> String {
-    if name.contains(".nemat") {
+    if name.contains(".ymat") {
         name.to_owned()
     } else if let Some(base) = fallback {
         if base.contains('@') {
@@ -288,6 +319,97 @@ fn material_to_ref(name: &str, fallback: &Option<String>) -> String {
         }
     } else {
         let name = crate::drawable::sanitize_entry_name(name);
-        format!("materials/{name}.nemat@{name}")
+        format!("materials/{name}.ymat@{name}")
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    #[test]
+    fn missing_obj_normals_use_geometric_face_normal() {
+        let stamp = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("clock")
+            .as_nanos();
+        let path = std::env::temp_dir().join(format!(
+            "northstar-ydd-missing-normal-{}-{stamp}.obj",
+            std::process::id()
+        ));
+        // Vertical YZ triangle. The old +Y fallback was geometrically wrong;
+        // its actual winding normal is +X.
+        fs::write(
+            &path,
+            "v 0 0 0\nv 0 1 0\nv 0 0 1\nvt 0 0\nvt 1 0\nvt 0 1\nf 1/1 2/2 3/3\n",
+        )
+        .expect("write OBJ fixture");
+        let options = ImportOptions {
+            scale: 1.0,
+            flip_v: false,
+            triangulate: true,
+            fallback_material: None,
+            properties_ref: None,
+            explicit_entry_name: None,
+        };
+        let model = import_obj(&path, &options).expect("import OBJ without vn");
+        let _ = fs::remove_file(&path);
+        let mesh = model.meshes.first().expect("mesh");
+        assert_eq!(mesh.vertices.len(), 3);
+        for vertex in &mesh.vertices {
+            assert!(
+                (vertex.normal[0] - 1.0).abs() < 1.0e-5,
+                "normal={:?}",
+                vertex.normal
+            );
+            assert!(
+                vertex.normal[1].abs() < 1.0e-5,
+                "normal={:?}",
+                vertex.normal
+            );
+            assert!(
+                vertex.normal[2].abs() < 1.0e-5,
+                "normal={:?}",
+                vertex.normal
+            );
+        }
+    }
+    #[test]
+    fn obj_groups_preserve_independent_mesh_identity() {
+        let stamp = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("clock")
+            .as_nanos();
+        let path = std::env::temp_dir().join(format!(
+            "northstar-ydd-groups-{}-{stamp}.obj",
+            std::process::id()
+        ));
+        fs::write(
+            &path,
+            "g first\nusemtl mat_a\nv 0 0 0\nv 1 0 0\nv 0 1 0\nvt 0 0\nvt 1 0\nvt 0 1\nvn 0 0 1\nf 1/1/1 2/2/1 3/3/1\ng second\nusemtl mat_b\nv 2 0 0\nv 3 0 0\nv 2 1 0\nf 4/1/1 5/2/1 6/3/1\n",
+        )
+        .expect("write grouped OBJ fixture");
+        let options = ImportOptions {
+            scale: 1.0,
+            flip_v: false,
+            triangulate: true,
+            fallback_material: None,
+            properties_ref: None,
+            explicit_entry_name: None,
+        };
+        let model = import_obj(&path, &options).expect("import grouped OBJ");
+        let _ = fs::remove_file(&path);
+        assert_eq!(model.meshes.len(), 2);
+        assert!(
+            model.meshes[0].name.starts_with("first"),
+            "{:?}",
+            model.meshes[0].name
+        );
+        assert!(
+            model.meshes[1].name.starts_with("second"),
+            "{:?}",
+            model.meshes[1].name
+        );
     }
 }

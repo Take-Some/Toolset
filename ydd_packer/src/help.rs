@@ -9,10 +9,14 @@ Purpose:
   A .ydd stores a set of resident model entries and is addressed as file.ydd@model_name.
 
 Commands:
-  pack      --input model.obj --input model.glb --output file.ydd [--material file.nemat@mat]
+  pack      --input model.obj --input model.glb --output file.ydd [--material file.ymat@mat]
   inspect   --input file.ydd
   list      --input file.ydd
   validate  --input file.ydd
+  extract-material    --input file.ydd [--entry model] [--mesh mesh] --output material.ymat
+  externalize-material --input file.ydd [--entry model] [--mesh mesh] --material materials/file.ymat@entry [--material-file local.ymat] --output patched.ydd
+  embed-material      --input file.ydd [--entry model] [--mesh mesh] --material materials/file.ymat@entry [--material-file local.ymat] --output patched.ydd
+  set-material-ref    --input file.ydd [--entry model] [--mesh mesh] --material materials/file.ymat@entry --output patched.ydd
   doctor   [--input file.ydd] [--fix]
   dump-body --input file.ydd --output file.yddbody
 
@@ -25,8 +29,10 @@ Source formats:
 Options:
   --input, -i           Source model or .ydd depending on command. May repeat for pack.
   --output, -o          Output .ydd or dump path.
-  --entry, --name       Override resident entry name for a single source only.
-  --material            Fallback .nemat or .nemat@entry material ref.
+  --entry, --name       Model entry selector; for pack, overrides a single source entry name.
+  --mesh                 Mesh selector for material authoring commands.
+  --material             External logical .ymat@entry selector.
+  --material-file        Physical .ymat path when it differs from the logical --material path.
   --scale               Position scale applied on import. Default: 1.0.
   --flip-v              Flip imported V coordinate.
   --no-triangulate      Reject non-triangle OBJ/glTF topology instead of triangulating/trimming.
@@ -35,6 +41,8 @@ Examples:
   northstar-ydd-packer pack -i assets/src/body.obj -i assets/src/head.glb -o assets/models/ped.ydd
   northstar-ydd-packer list -i assets/models/ped.ydd
   northstar-ydd-packer inspect -i assets/models/ped.ydd
+  northstar-ydd-packer externalize-material -i assets/models/ped.ydd --entry ped --mesh body --material materials/ped.ymat@body -o assets/models/ped.external.ydd
+  northstar-ydd-packer embed-material -i assets/models/ped.external.ydd --entry ped --mesh body --material materials/ped.ymat@body -o assets/models/ped.embedded.ydd
   northstar-ydd-packer doctor --input assets/models/ped.ydd --fix
 "#
     );

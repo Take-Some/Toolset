@@ -6,7 +6,9 @@ pub struct Args {
     pub output: Option<PathBuf>,
     pub out_dir: Option<PathBuf>,
     pub entry: Option<String>,
+    pub mesh: Option<String>,
     pub material: Option<String>,
+    pub material_file: Option<PathBuf>,
     pub properties_ref: Option<String>,
     pub scale: f32,
     pub flip_v: bool,
@@ -44,9 +46,19 @@ pub fn parse_args(args: &[String]) -> Result<Args, String> {
                 i += 1;
                 out.entry = Some(args.get(i).ok_or("--entry requires value")?.clone());
             }
+            "--mesh" => {
+                i += 1;
+                out.mesh = Some(args.get(i).ok_or("--mesh requires value")?.clone());
+            }
             "--material" => {
                 i += 1;
                 out.material = Some(args.get(i).ok_or("--material requires value")?.clone());
+            }
+            "--material-file" => {
+                i += 1;
+                out.material_file = Some(PathBuf::from(
+                    args.get(i).ok_or("--material-file requires value")?,
+                ));
             }
             "--properties-ref" | "--descriptor-ref" => {
                 i += 1;

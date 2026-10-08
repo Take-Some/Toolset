@@ -12,9 +12,9 @@ use crate::{
 };
 
 const TOOL_NAME: &str = "northstar-ytyp-packer";
-const ACCEPTED_INPUTS: &str = "*.ytyp.xml source Y-Type Properties XML files; *.ytyp compiled Y-Type Properties assets for inspect/validate/dump";
+const ACCEPTED_INPUTS: &str = "*.ytyp.xml source Y-Type Properties XML files; *.ytyp canonical NEF8 V2 YTYP assets for inspect/validate/dump";
 const PRODUCED_OUTPUTS: &str =
-    "*.ytyp properties asset; XML dumps; JSON manifest/metadata/dependency projections";
+    "*.ytyp NEF8 runtime asset; XML dumps; JSON manifest/metadata/dependency projections";
 
 pub fn dispatch(raw_args: Vec<String>) -> Result<(), String> {
     if raw_args.is_empty() {
@@ -80,7 +80,7 @@ fn run_compile(args: &[String]) -> Result<(), String> {
         return Ok(());
     }
 
-    northstar_cli::ansi::info("YTYP metadata build started");
+    northstar_cli::ansi::info("YTYP NEF8 build started");
     diagnostics::print_operation(
         TOOL_NAME,
         "compile",
@@ -121,7 +121,7 @@ fn run_compile(args: &[String]) -> Result<(), String> {
         discovery::emit_or_write(&root, &source_path, &target, &bytes, cfg.check)?;
     }
     northstar_cli::ansi::ok(format!(
-        "YTYP metadata build completed compiled={} check={}",
+        "YTYP NEF8 build completed compiled={} check={}",
         xml_sources.len(),
         cfg.check
     ));
@@ -170,7 +170,7 @@ fn run_validate(args: &[String]) -> Result<(), String> {
         northstar_cli::ansi::ok(format!("validated: {}", discovery::rel(&root, &path)));
     }
     northstar_cli::ansi::ok(format!(
-        "validated YTYP properties: entry(s)={entry_count}, dependency ref(s)={dep_count}"
+        "validated canonical YTYP: entry(s)={entry_count}, dependency ref(s)={dep_count}"
     ));
     Ok(())
 }

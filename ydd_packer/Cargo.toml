@@ -7,8 +7,10 @@ description = "North Star NEF8/ListFile drawable dictionary importer for OBJ, gl
 license = "MIT"
 
 [dependencies]
+newengine-asset-format-nef8 = { path = "../../../NewEngine/neocore2/crates/newengine-asset-format-nef8" }
 northstar-cli = { path = "../../shared/northstar_cli" }
 northstar-nef8 = { path = "../../shared/northstar_nef8" }
+northstar-ymat-packer = { path = "../ymat_packer" }
 base64 = "0.22"
 blake3 = "1.5"
 flate2 = "1.0"

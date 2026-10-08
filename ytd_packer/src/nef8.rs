@@ -6,10 +6,11 @@ use northstar_nef8::{
 };
 use std::io::{Read, Write};
 
+const CONTENT_SCHEMA_VERSION: u16 = 1;
 pub const CONTENT_KIND_YTD: u16 = TYPE_YTD;
 pub type Nef8Header = Header;
 
-pub fn pack_ytd(body: &[u8], _logical_path: &str, schema_version: u64) -> Result<Vec<u8>, String> {
+pub fn pack_ytd(body: &[u8], _logical_path: &str) -> Result<Vec<u8>, String> {
     let compressed = deflate(body)?;
     let entry_count = parse_manifest_only(body)
         .map(|manifest| manifest.entries.len().min(u32::MAX as usize) as u32)
@@ -18,8 +19,7 @@ pub fn pack_ytd(body: &[u8], _logical_path: &str, schema_version: u64) -> Result
         (body.len() >= FULL_HASH_BODY_THRESHOLD).then(|| *blake3::hash(body).as_bytes());
     encode(EncodeRequest {
         content_kind: CONTENT_KIND_YTD,
-        content_schema_version: u16::try_from(schema_version)
-            .map_err(|_| format!("YTD schema version too large: {schema_version}"))?,
+        content_schema_version: CONTENT_SCHEMA_VERSION,
         entry_count,
         additional_flags: 0,
         min_size_class: 4,
@@ -92,7 +92,7 @@ mod tests {
     fn packer_emits_variable_header() {
         let mut body = b"NETD".to_vec();
         body.extend_from_slice(&[0; 64]);
-        let packed = pack_ytd(&body, "textures/test.ytd", 1).unwrap();
+        let packed = pack_ytd(&body, "textures/test.ytd").unwrap();
         let header = parse_header(&packed).unwrap();
         assert_eq!(header.version, northstar_nef8::VERSION);
         assert_eq!(header.header_len, 32);

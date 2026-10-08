@@ -262,7 +262,10 @@ name = "newengine-assets-api"
 version = "0.1.0"
 dependencies = [
  "abi_stable",
+ "blake3",
+ "flate2",
  "log",
+ "newengine-contract-api",
  "newengine-plugin-api",
  "newengine-schema-api",
  "newengine-service-api",
@@ -272,11 +275,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "newengine-contract-api"
+version = "0.1.0"
+
+[[package]]
 name = "newengine-plugin-api"
 version = "0.1.0"
 dependencies = [
  "abi_stable",
+ "newengine-contract-api",
  "newengine-service-api",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
@@ -292,6 +302,7 @@ dependencies = [
 name = "newengine-service-api"
 version = "0.1.0"
 dependencies = [
+ "newengine-contract-api",
  "serde",
  "serde_json",
 ]
@@ -323,7 +334,7 @@ dependencies = [
 
 [[package]]
 name = "northstar-nef8"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "newengine-assets-api",
 ]

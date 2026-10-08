@@ -16,7 +16,7 @@ pub fn encode_ymap_nef8(body: &[u8], _logical_path: &str) -> Result<Vec<u8>, Str
         (body.len() >= FULL_HASH_BODY_THRESHOLD).then(|| *blake3::hash(body).as_bytes());
     encode(EncodeRequest {
         content_kind: TYPE_YMAP,
-        content_schema_version: 1,
+        content_schema_version: 2,
         entry_count: 0,
         additional_flags: 0,
         min_size_class: 4,
@@ -63,7 +63,7 @@ pub fn decode_ymap_nef8(bytes: &[u8]) -> Result<(Header, Vec<u8>), String> {
 }
 
 pub fn ymap_content_kind_matches_descriptor() -> bool {
-    u32::from(TYPE_YMAP) == newengine_asset_format_nef8::ymap::CONTENT_KIND
+    u32::from(TYPE_YMAP) == newengine_assets_api::LIST_FILE_CONTENT_KIND_YMAP
 }
 
 #[cfg(test)]

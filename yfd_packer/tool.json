@@ -1,0 +1,53 @@
+{
+  "schema": "takesome.tool.v1",
+  "id": "northstar.yfd_packer",
+  "version": "0.1.1",
+  "name": "North Star YFD Packer",
+  "description": "Builds, inspects and validates .yfd NEF8 font dictionaries.",
+  "kind": "rust-cli",
+  "root": ".",
+  "cargo_manifest": "Cargo.toml",
+  "install_path": "tools/exe/northstar-yfd-packer.exe",
+  "default_args": [
+    "--help"
+  ],
+  "validation_args": [
+    "--help"
+  ],
+  "formats": [
+    ".yfd"
+  ],
+  "content_kinds": [
+    "font_dictionary"
+  ],
+  "format_provider": {
+    "provider_id": "northstar.yfd_packer",
+    "type_ids": [
+      "asset.type.yfd.font_dictionary"
+    ],
+    "can_read": true,
+    "can_write": true,
+    "can_inspect": true,
+    "can_validate": true,
+    "can_diff": true,
+    "can_preview": true,
+    "can_edit_schema": true,
+    "preview_surface": "tree",
+    "editor_schema": "northstar.schema.yfd.font_dictionary.v1"
+  },
+  "capabilities": [
+    "asset.format.yfd.read",
+    "asset.format.yfd.write",
+    "asset.format.yfd.inspect",
+    "asset.format.yfd.validate",
+    "asset.format.yfd.diff",
+    "asset.preview.tree",
+    "asset.editor.font.edit_schema",
+    "assets.fonts.yfd_pack",
+    "assets.fonts.yfd_inspect",
+    "validation.nef8_hash"
+  ],
+  "build_validation": true,
+  "safe_for_build": true,
+  "maturity": "native-dev"
+}

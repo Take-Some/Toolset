@@ -1,9 +1,9 @@
 {
   "schema": "takesome.tool.v1",
   "id": "northstar.ydd_packer",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "name": "North Star YDD Packer",
-  "description": "Builds, inspects and validates .ydd as a resident NEF8/ListFile drawable dictionary with file.ydd@model entries.",
+  "description": "Builds and edits YDD V5 drawable dictionaries with built-in MaterialResource payloads or external .ymat@entry bindings.",
   "kind": "rust-cli",
   "root": ".",
   "cargo_manifest": "Cargo.toml",
@@ -49,7 +49,11 @@
     "model.import.gltf",
     "model.import.glb",
     "model.import.fbx.placeholder",
-    "validation.nef8_hash"
+    "validation.nef8_hash",
+    "assets.material.builtin",
+    "assets.material.external.ymat",
+    "assets.material.extract",
+    "assets.material.embed"
   ],
   "commands": [
     {
@@ -72,6 +76,34 @@
         "accepted-inputs"
       ],
       "description": "Print accepted input and output file contract."
+    },
+    {
+      "id": "extract-material",
+      "args": [
+        "extract-material"
+      ],
+      "description": "Extract a built-in YDD material into a YMAT dictionary."
+    },
+    {
+      "id": "externalize-material",
+      "args": [
+        "externalize-material"
+      ],
+      "description": "Write a built-in material to YMAT and replace it with an external .ymat@entry binding."
+    },
+    {
+      "id": "embed-material",
+      "args": [
+        "embed-material"
+      ],
+      "description": "Embed a selected YMAT material into YDD V5 as a built-in MaterialResource payload."
+    },
+    {
+      "id": "set-material-ref",
+      "args": [
+        "set-material-ref"
+      ],
+      "description": "Replace a mesh material binding with an external .ymat@entry reference."
     }
   ],
   "build_validation": true,

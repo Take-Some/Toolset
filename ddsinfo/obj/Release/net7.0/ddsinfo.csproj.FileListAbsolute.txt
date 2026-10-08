@@ -1,0 +1,10 @@
+C:\Users\Aiden\Documents\Take Some\NorthStar-Suite\tools\toolsSrc\ddsinfo\bin\Release\net7.0\ddsinfo.deps.json
+C:\Users\Aiden\Documents\Take Some\NorthStar-Suite\tools\toolsSrc\ddsinfo\bin\Release\net7.0\ddsinfo.dll
+C:\Users\Aiden\Documents\Take Some\NorthStar-Suite\tools\toolsSrc\ddsinfo\bin\Release\net7.0\ddsinfo.pdb
+C:\Users\Aiden\Documents\Take Some\NorthStar-Suite\tools\toolsSrc\ddsinfo\obj\Release\net7.0\ddsinfo.csproj.AssemblyReference.cache
+C:\Users\Aiden\Documents\Take Some\NorthStar-Suite\tools\toolsSrc\ddsinfo\obj\Release\net7.0\ddsinfo.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\Aiden\Documents\Take Some\NorthStar-Suite\tools\toolsSrc\ddsinfo\obj\Release\net7.0\ddsinfo.csproj.CoreCompileInputs.cache
+C:\Users\Aiden\Documents\Take Some\NorthStar-Suite\tools\toolsSrc\ddsinfo\obj\Release\net7.0\ddsinfo.dll
+C:\Users\Aiden\Documents\Take Some\NorthStar-Suite\tools\toolsSrc\ddsinfo\obj\Release\net7.0\refint\ddsinfo.dll
+C:\Users\Aiden\Documents\Take Some\NorthStar-Suite\tools\toolsSrc\ddsinfo\obj\Release\net7.0\ddsinfo.pdb
+C:\Users\Aiden\Documents\Take Some\NorthStar-Suite\tools\toolsSrc\ddsinfo\obj\Release\net7.0\ref\ddsinfo.dll

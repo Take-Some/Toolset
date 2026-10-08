@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 use base64::Engine;
 use serde::Deserialize;
 
-use crate::drawable::Vertex;
+use crate::drawable::{SkinVertex, Vertex};
 use crate::model::{
     apply_position_scale, default_normal, make_mesh, make_model, source_entry_name, ImportOptions,
 };
@@ -66,6 +66,49 @@ fn import_doc(
                     uv[1] = 1.0 - uv[1];
                 }
             }
+            let skin = match (prim.attributes.joints_0, prim.attributes.weights_0) {
+                (Some(joints_accessor), Some(weights_accessor)) => {
+                    let joints = read_joint_accessor(doc, buffers, joints_accessor)?;
+                    let weights = read_weight_accessor(doc, buffers, weights_accessor)?;
+                    if joints.len() != positions.len() || weights.len() != positions.len() {
+                        return Err(format!(
+                            "glTF '{}' mesh {mesh_index} primitive {prim_index} skin count mismatch positions={} joints={} weights={}",
+                            path.display(), positions.len(), joints.len(), weights.len()
+                        ));
+                    }
+                    let mut skin = Vec::with_capacity(positions.len());
+                    for i in 0..positions.len() {
+                        let raw = weights[i];
+                        if raw.iter().any(|value| !value.is_finite() || *value < 0.0) {
+                            return Err(format!(
+                                "glTF '{}' mesh {mesh_index} primitive {prim_index} contains invalid skin weights at vertex {i}",
+                                path.display()
+                            ));
+                        }
+                        let sum = raw.iter().sum::<f32>();
+                        if !sum.is_finite() || sum <= 1.0e-8 {
+                            return Err(format!(
+                                "glTF '{}' mesh {mesh_index} primitive {prim_index} contains zero skin weights at vertex {i}",
+                                path.display()
+                            ));
+                        }
+                        skin.push(SkinVertex {
+                            joints: joints[i],
+                            weights: [raw[0] / sum, raw[1] / sum, raw[2] / sum, raw[3] / sum],
+                            joints_extra: [0; 4],
+                            weights_extra: [0.0; 4],
+                        });
+                    }
+                    Some(skin)
+                }
+                (None, None) => None,
+                _ => {
+                    return Err(format!(
+                        "glTF '{}' mesh {mesh_index} primitive {prim_index} must provide JOINTS_0 and WEIGHTS_0 together",
+                        path.display()
+                    ))
+                }
+            };
             let count = positions.len().min(normals.len()).min(uvs.len());
             let mut vertices = Vec::with_capacity(count);
             for i in 0..count {
@@ -90,12 +133,14 @@ fn import_doc(
                 .name
                 .clone()
                 .unwrap_or_else(|| format!("mesh_{mesh_index}_{prim_index}"));
-            meshes.push(make_mesh(
+            let mut imported_mesh = make_mesh(
                 crate::drawable::sanitize_entry_name(&mesh_name),
                 options.fallback_material.clone(),
                 vertices,
                 trim_to_triangles(indices),
-            ));
+            );
+            imported_mesh.skin = skin;
+            meshes.push(imported_mesh);
         }
     }
     if meshes.is_empty() {
@@ -104,7 +149,48 @@ fn import_doc(
             path.display()
         ));
     }
-    Ok(vec![make_model(entry_name, path, meshes)])
+    let mut model = make_model(entry_name, path, meshes);
+    model.skin_source_to_model = northstar_skin_source_to_model(doc)?;
+    if model.meshes.iter().any(|mesh| mesh.skin.is_some()) && model.skin_source_to_model.is_none() {
+        return Err(format!(
+            "glTF '{}' contains skin attributes but no extras.northstar.skin_source_to_model transform",
+            path.display()
+        ));
+    }
+    Ok(vec![model])
+}
+
+fn northstar_skin_source_to_model(doc: &GltfDoc) -> Result<Option<[f32; 16]>, String> {
+    let Some(extras) = doc.extras.as_ref() else {
+        return Ok(None);
+    };
+    let Some(value) = extras
+        .get("northstar")
+        .and_then(|value| value.get("skin_source_to_model"))
+    else {
+        return Ok(None);
+    };
+    let values = value
+        .as_array()
+        .ok_or("glTF extras.northstar.skin_source_to_model must be a 16-number array")?;
+    if values.len() != 16 {
+        return Err(format!(
+            "glTF extras.northstar.skin_source_to_model length={} expected=16",
+            values.len()
+        ));
+    }
+    let mut matrix = [0.0f32; 16];
+    for (index, value) in values.iter().enumerate() {
+        let component = value
+            .as_f64()
+            .ok_or_else(|| format!("glTF skin_source_to_model[{index}] is not numeric"))?
+            as f32;
+        if !component.is_finite() {
+            return Err(format!("glTF skin_source_to_model[{index}] is non-finite"));
+        }
+        matrix[index] = component;
+    }
+    Ok(Some(matrix))
 }
 
 fn load_gltf_buffers(path: &Path, doc: &GltfDoc) -> Result<Vec<Vec<u8>>, String> {
@@ -175,6 +261,79 @@ fn read_vec2_accessor(
     for i in 0..view.accessor.count {
         let o = view.offset + i * stride;
         out.push([read_f32(view.bytes, o)?, read_f32(view.bytes, o + 4)?]);
+    }
+    Ok(out)
+}
+
+fn read_joint_accessor(
+    doc: &GltfDoc,
+    buffers: &[Vec<u8>],
+    accessor_index: usize,
+) -> Result<Vec<[u16; 4]>, String> {
+    let view = accessor_view(doc, buffers, accessor_index)?;
+    if view.accessor.type_name.as_deref() != Some("VEC4") {
+        return Err(format!("glTF joint accessor {accessor_index} must be VEC4"));
+    }
+    let element_size = match view.accessor.component_type {
+        5121 => 4,
+        5123 => 8,
+        other => return Err(format!(
+            "glTF joint accessor {accessor_index} unsupported componentType {other}; expected UNSIGNED_BYTE/UNSIGNED_SHORT"
+        )),
+    };
+    let stride = view.stride.unwrap_or(element_size);
+    let mut out = Vec::with_capacity(view.accessor.count);
+    for i in 0..view.accessor.count {
+        let o = view.offset + i * stride;
+        out.push(match view.accessor.component_type {
+            5121 => [
+                *view.bytes.get(o).ok_or("glTF joint u8 outside buffer")? as u16,
+                *view
+                    .bytes
+                    .get(o + 1)
+                    .ok_or("glTF joint u8 outside buffer")? as u16,
+                *view
+                    .bytes
+                    .get(o + 2)
+                    .ok_or("glTF joint u8 outside buffer")? as u16,
+                *view
+                    .bytes
+                    .get(o + 3)
+                    .ok_or("glTF joint u8 outside buffer")? as u16,
+            ],
+            5123 => [
+                read_u16(view.bytes, o)?,
+                read_u16(view.bytes, o + 2)?,
+                read_u16(view.bytes, o + 4)?,
+                read_u16(view.bytes, o + 6)?,
+            ],
+            _ => unreachable!(),
+        });
+    }
+    Ok(out)
+}
+
+fn read_weight_accessor(
+    doc: &GltfDoc,
+    buffers: &[Vec<u8>],
+    accessor_index: usize,
+) -> Result<Vec<[f32; 4]>, String> {
+    let view = accessor_view(doc, buffers, accessor_index)?;
+    if view.accessor.component_type != 5126 || view.accessor.type_name.as_deref() != Some("VEC4") {
+        return Err(format!(
+            "glTF weight accessor {accessor_index} must be FLOAT VEC4"
+        ));
+    }
+    let stride = view.stride.unwrap_or(16);
+    let mut out = Vec::with_capacity(view.accessor.count);
+    for i in 0..view.accessor.count {
+        let o = view.offset + i * stride;
+        out.push([
+            read_f32(view.bytes, o)?,
+            read_f32(view.bytes, o + 4)?,
+            read_f32(view.bytes, o + 8)?,
+            read_f32(view.bytes, o + 12)?,
+        ]);
     }
     Ok(out)
 }
@@ -323,6 +482,7 @@ fn read_u32(bytes: &[u8], offset: usize) -> Result<u32, String> {
 
 #[derive(Debug, Deserialize)]
 struct GltfDoc {
+    extras: Option<serde_json::Value>,
     buffers: Option<Vec<GltfBuffer>>,
     #[serde(rename = "bufferViews")]
     buffer_views: Option<Vec<GltfBufferView>>,
@@ -375,4 +535,8 @@ struct GltfAttributes {
     normal: Option<usize>,
     #[serde(rename = "TEXCOORD_0")]
     texcoord_0: Option<usize>,
+    #[serde(rename = "JOINTS_0")]
+    joints_0: Option<usize>,
+    #[serde(rename = "WEIGHTS_0")]
+    weights_0: Option<usize>,
 }

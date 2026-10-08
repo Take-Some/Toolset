@@ -4,7 +4,7 @@ First-party Rust replacement for the legacy `hasher.exe` utility.
 
 ## Purpose
 
-Hashes newline-separated name lists with a RAGE/JOAAT-compatible 32-bit string hash.
+Hashes newline-separated name lists with a RSC7/JOAAT-compatible 32-bit string hash.
 
 ## Usage
 

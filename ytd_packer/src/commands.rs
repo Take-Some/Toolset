@@ -125,7 +125,7 @@ fn run_pack(args: &[String]) -> Result<(), String> {
     let netd = pack_encoded_with_options(entries, options)
         .map_err(|e| format!("NETD pack failed: {e}"))?;
     let logical = texture_io::normalize_logical_path(&output.to_string_lossy());
-    let ytd = nef8::pack_ytd(&netd, &logical, 1)?;
+    let ytd = nef8::pack_ytd(&netd, &logical)?;
     if let Some(parent) = output.parent() {
         fs::create_dir_all(parent)
             .map_err(|e| format!("create parent '{}' failed: {e}", parent.display()))?;

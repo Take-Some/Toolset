@@ -1,0 +1,84 @@
+{
+  "schema": "takesome.tool.v1",
+  "id": "northstar.ymat_packer",
+  "version": "0.2.0",
+  "name": "North Star YMAT Packer",
+  "description": "Builds, inspects and validates canonical YMAT material dictionaries used as external storage for MaterialResource.",
+  "kind": "rust-cli",
+  "root": ".",
+  "cargo_manifest": "Cargo.toml",
+  "install_path": "tools/exe/northstar-ymat-packer.exe",
+  "default_args": [
+    "help"
+  ],
+  "validation_args": [
+    "help"
+  ],
+  "formats": [
+    ".ymat",
+    ".ymat.json"
+  ],
+  "content_kinds": [
+    "material_dictionary"
+  ],
+  "format_provider": {
+    "provider_id": "northstar.ymat_packer",
+    "type_ids": [
+      "asset.type.ymat.material_dictionary"
+    ],
+    "can_read": true,
+    "can_write": true,
+    "can_inspect": true,
+    "can_validate": true,
+    "can_diff": false,
+    "can_preview": true,
+    "can_edit_schema": true,
+    "preview_surface": "material",
+    "editor_schema": "northstar.schema.ymat.v1"
+  },
+  "capabilities": [
+    "asset.format.ymat.read",
+    "asset.format.ymat.write",
+    "asset.format.ymat.inspect",
+    "asset.format.ymat.validate",
+    "asset.preview.material",
+    "asset.editor.material.edit_schema",
+    "assets.materials.ymat_pack",
+    "assets.materials.ymat_inspect",
+    "assets.material_resource.external_storage",
+    "validation.nef8_hash"
+  ],
+  "commands": [
+    {
+      "id": "help",
+      "args": [
+        "help"
+      ],
+      "description": "Print tool usage."
+    },
+    {
+      "id": "pack",
+      "args": [
+        "pack"
+      ],
+      "description": "Pack authored northstar.ymat.v1 JSON into NEF8 YMAT."
+    },
+    {
+      "id": "validate",
+      "args": [
+        "validate"
+      ],
+      "description": "Validate authored JSON or runtime YMAT."
+    },
+    {
+      "id": "inspect",
+      "args": [
+        "inspect"
+      ],
+      "description": "Inspect runtime YMAT."
+    }
+  ],
+  "build_validation": true,
+  "safe_for_build": true,
+  "maturity": "native-dev"
+}

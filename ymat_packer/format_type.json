@@ -1,0 +1,19 @@
+{
+  "schema": "northstar.format_type.v1",
+  "type_id": "asset.type.ymat.material_dictionary",
+  "label": "YMAT Material Dictionary",
+  "content_kind": "material_dictionary",
+  "extensions": [
+    ".ymat"
+  ],
+  "provider_id": "northstar.ymat_packer",
+  "can_read": true,
+  "can_write": true,
+  "can_inspect": true,
+  "can_validate": true,
+  "can_diff": false,
+  "can_preview": true,
+  "can_edit_schema": true,
+  "schema_id": "northstar.schema.ymat.v1",
+  "preview_surface": "material"
+}

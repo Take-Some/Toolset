@@ -1,12 +1,13 @@
 [package]
 name = "northstar-ytyp-packer"
-version = "0.1.3"
+version = "0.2.0"
 edition = "2021"
 build = "build.rs"
 description = "North Star Y-Type Properties packer"
 license = "MIT"
 
 [dependencies]
+northstar-nef8 = { path = "../../shared/northstar_nef8" }
 northstar-cli = { path = "../../shared/northstar_cli" }
 blake3 = "1.5"
 flate2 = "1.0"

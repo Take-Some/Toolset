@@ -23,7 +23,7 @@ pub enum Command {
 pub fn usage() -> &'static str {
     "northstar-hasher\n\n\
      Purpose:\n\
-       Hash newline-separated name lists with a RAGE/JOAAT-compatible 32-bit string hash.\n\n\
+       Hash newline-separated name lists with a RSC7/JOAAT-compatible 32-bit string hash.\n\n\
      Commands:\n\
        accepted-inputs        Print accepted input/output contract.\n\
        doctor                 Run a lightweight self-check.\n\

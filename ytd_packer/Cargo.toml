@@ -12,7 +12,7 @@ northstar-nef8 = { path = "../../shared/northstar_nef8" }
 blake3 = "1.5"
 flate2 = "1.0"
 image = { version = "0.25", default-features = false, features = ["png", "jpeg", "tga", "bmp"] }
-newengine-texture-container = { path = "../../../../../Repos/NorthStar/NewEngine/neocore2/crates/newengine-texture-container" }
+newengine-texture-container = { path = "../../../NewEngine/neocore2/crates/newengine-texture-container" }
 serde_json = "1.0"
 
 [build-dependencies]

@@ -10,7 +10,7 @@ Purpose:
 Clean format rule:
   .nepak is a VFS package only. It stores bytes, path metadata,
   package/profile metadata, content_kind hints and storage accounting.
-  It does not parse .ytd/.ydd/.ytyp/.nemat semantics.
+  It does not parse .ytd/.ydd/.ytyp/.ymat semantics.
 
 Commands:
   pack       --input <file-or-directory> --output package.nepak [--no-compress]

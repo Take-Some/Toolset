@@ -5,14 +5,14 @@ use std::path::{Path, PathBuf};
 use serde_json::json;
 
 use crate::{
-    args::{parse_args, required_input, required_output},
+    args::{parse_args, required_input},
     help, material, nef8,
 };
 
 const TOOL_NAME: &str = "northstar-nemat-packer";
 const ACCEPTED_INPUTS: &str = "*.nemat.xml XMLtype material libraries and *.nemat NEF8 material libraries for inspect/validate/dump";
 const PRODUCED_OUTPUTS: &str =
-    "*.nemat runtime NEF8 material library; *.nemat.xml/XML dumps; JSON manifest/graph projections";
+    "*.nemat.xml/XML dumps and JSON manifest/graph projections; no new runtime NEMAT assets";
 
 pub fn dispatch(raw_args: Vec<String>) -> Result<(), String> {
     if raw_args.is_empty() {
@@ -30,8 +30,10 @@ pub fn dispatch(raw_args: Vec<String>) -> Result<(), String> {
         return Ok(());
     }
     match raw_args[0].as_str() {
-        "create-draft" | "draft" | "new" => run_create_draft(&raw_args[1..]),
-        "pack" | "compile" | "build" => run_pack(&raw_args[1..]),
+        "create-draft" | "draft" | "new" | "pack" | "compile" | "build" => Err(
+            "NEMAT authoring is retired; use northstar-ymat-packer or YDD/YDR built-in MaterialResource storage"
+                .to_owned(),
+        ),
         "validate" => run_validate(&raw_args[1..]),
         "doctor" | "--doctor" => {
             diagnostics::print_doctor_ok(TOOL_NAME);
@@ -58,49 +60,6 @@ pub fn dispatch(raw_args: Vec<String>) -> Result<(), String> {
             "unknown command '{other}'. Use --help to list supported commands."
         )),
     }
-}
-
-fn run_create_draft(args: &[String]) -> Result<(), String> {
-    let cfg = parse_args(args)?;
-    let xml = material::xml_from_draft_args(&cfg)?;
-    if let Some(output) = cfg.output {
-        write_bytes(&output, xml.as_bytes())?;
-        northstar_cli::ansi::ok(format!(
-            "material XMLtype draft written: {}",
-            output.display()
-        ));
-    } else {
-        print!("{xml}");
-    }
-    Ok(())
-}
-
-fn run_pack(args: &[String]) -> Result<(), String> {
-    let cfg = parse_args(args)?;
-    let input = required_input(&cfg)?;
-    let output = required_output(&cfg, "pack", "file.nemat")?;
-    diagnostics::print_operation(
-        TOOL_NAME,
-        "pack",
-        cfg.debug,
-        ACCEPTED_INPUTS,
-        PRODUCED_OUTPUTS,
-    );
-    diagnostics::print_debug_value(cfg.debug, "input", input.display());
-    diagnostics::print_debug_value(cfg.debug, "output", output.display());
-    let xml = read_xml_any(&input)?;
-    let library = material::parse_material_xml(&xml)?;
-    let logical = cfg
-        .logical_path
-        .unwrap_or_else(|| logical_asset_path(&cfg.root, &output));
-    let nemat = nef8::pack_nemat_xmltype(&xml, &logical, library.materials.len() as u64)?;
-    write_bytes(&output, &nemat)?;
-    northstar_cli::ansi::ok(format!(
-        "built NEMAT XMLtype: {} entries={}",
-        output.display(),
-        library.materials.len()
-    ));
-    Ok(())
 }
 
 fn run_validate(args: &[String]) -> Result<(), String> {

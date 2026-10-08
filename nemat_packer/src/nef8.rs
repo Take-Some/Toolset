@@ -1,14 +1,20 @@
-use flate2::{read::DeflateDecoder, write::DeflateEncoder, Compression};
-use northstar_nef8::{
-    body_slice, encode, parse_header as parse_wire_header, EncodeRequest, Header,
-    FULL_HASH_BODY_THRESHOLD, TYPE_NEMAT,
-};
+use flate2::read::DeflateDecoder;
+#[cfg(test)]
+use flate2::{write::DeflateEncoder, Compression};
+use northstar_nef8::{body_slice, parse_header as parse_wire_header, Header, TYPE_NEMAT};
+#[cfg(test)]
+use northstar_nef8::{encode, EncodeRequest, FULL_HASH_BODY_THRESHOLD};
 use serde_json::{json, Value};
-use std::io::{Read, Write};
+use std::io::Read;
+#[cfg(test)]
+use std::io::Write;
 
+#[cfg(test)]
+const CONTENT_SCHEMA_VERSION: u16 = 1;
 pub const CONTENT_KIND_NEMAT: u16 = TYPE_NEMAT;
 pub type Nef8Header = Header;
 
+#[cfg(test)]
 pub fn pack_nemat_xmltype(
     xml: &str,
     _logical_path: &str,
@@ -20,7 +26,7 @@ pub fn pack_nemat_xmltype(
         (body.len() >= FULL_HASH_BODY_THRESHOLD).then(|| *blake3::hash(body).as_bytes());
     encode(EncodeRequest {
         content_kind: CONTENT_KIND_NEMAT,
-        content_schema_version: 1,
+        content_schema_version: CONTENT_SCHEMA_VERSION,
         entry_count: u32::try_from(entry_count)
             .map_err(|_| format!("NEMAT entry_count too large: {entry_count}"))?,
         additional_flags: 0,
@@ -117,6 +123,7 @@ pub fn normalize_logical_path(value: &str) -> String {
         .to_owned()
 }
 
+#[cfg(test)]
 fn deflate(bytes: &[u8]) -> Result<Vec<u8>, String> {
     let mut encoder = DeflateEncoder::new(Vec::new(), Compression::default());
     encoder

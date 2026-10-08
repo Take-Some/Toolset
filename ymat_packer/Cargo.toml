@@ -1,0 +1,12 @@
+[package]
+name = "northstar-ymat-packer"
+version = "0.2.0"
+edition = "2021"
+description = "North Star YMAT material dictionary packer"
+license = "MIT"
+
+[dependencies]
+newengine-assets-api = { path = "../../../NewEngine/neocore2/crates/newengine-assets-api" }
+blake3 = "1.5"
+flate2 = "1.0"
+serde_json = "1.0"

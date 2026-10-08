@@ -23,7 +23,7 @@ fn main() {
         Ok(()) => telemetry.complete(),
         Err(err) => {
             telemetry.failed(&err);
-            northstar_cli::ansi::error("{err}");
+            northstar_cli::ansi::error(&err);
             std::process::exit(1);
         }
     }

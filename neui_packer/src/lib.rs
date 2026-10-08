@@ -1,4 +1,5 @@
 use flate2::{read::DeflateDecoder, write::DeflateEncoder, Compression};
+const CONTENT_SCHEMA_VERSION: u16 = 1; // Must match the NEUI format descriptor readable/write schema.
 use northstar_nef8::{
     body_slice, encode, parse_header as parse_wire_header, EncodeRequest, Header,
     FULL_HASH_BODY_THRESHOLD, TYPE_NEUI,
@@ -24,7 +25,7 @@ pub fn pack_xmlcentral_to_nef8(
         (body.len() >= FULL_HASH_BODY_THRESHOLD).then(|| *blake3::hash(body).as_bytes());
     encode(EncodeRequest {
         content_kind: CONTENT_KIND_NEUI,
-        content_schema_version: 1,
+        content_schema_version: CONTENT_SCHEMA_VERSION,
         entry_count: u32::try_from(entry_count)
             .map_err(|_| format!("NEUI entry_count too large: {entry_count}"))?,
         additional_flags: 0,
@@ -254,7 +255,7 @@ pub fn font_refs(xmlcentral: &str) -> Vec<String> {
     out.extend(attr_values(xmlcentral, "Text", "font"));
     out.extend(attr_values(xmlcentral, "Label", "font"));
     out.extend(attr_values_by_attr_name(xmlcentral, "fontRef"));
-    out.retain(|value| is_asset_ref(value) && value.to_ascii_lowercase().contains(".neftd@"));
+    out.retain(|value| is_asset_ref(value) && value.to_ascii_lowercase().contains(".yfd@"));
     out.sort();
     out.dedup();
     out
@@ -412,12 +413,12 @@ fn validate_ui_resource_refs(xmlcentral: &str, source_ref: &str) -> Result<(), S
         let lowered = value.to_ascii_lowercase();
         if lowered.contains(".yft") {
             return Err(format!(
-                "{source_ref}: UI font ref '{value}' uses unsupported .yft; fonts must be .neftd@entry"
+                "{source_ref}: UI font ref '{value}' uses unsupported .yft; fonts must be .yfd@entry"
             ));
         }
-        if lowered.contains(".neftd") && !lowered.contains(".neftd@") {
+        if lowered.contains(".yfd") && !lowered.contains(".yfd@") {
             return Err(format!(
-                "{source_ref}: UI font ref '{value}' must select a NEFTD entry with .neftd@entry"
+                "{source_ref}: UI font ref '{value}' must select a YFD entry with .yfd@entry"
             ));
         }
         if lowered.contains(".ytd") && !lowered.contains(".ytd@") {
@@ -495,9 +496,9 @@ mod tests {
   <Surface name="engine.ui.test" root="layout.main" theme="assets/ui/themes/northstar_editor.neui@editor_light" />
   <Resources>
     <TextureRef name="logo" ref="assets/loading/loading_ui.ytd@newengine_logo" />
-    <FontRef name="body" ref="assets/ui/fonts/editor.neftd@tt_lakes_neue_trial_bold" />
+    <FontRef name="body" ref="assets/ui/fonts/editor.yfd@tt_lakes_neue_trial_bold" />
   </Resources>
-  <Layout name="layout.main"><Panel id="root"><Image texture="assets/loading/loading_ui.ytd@newengine_logo" /><Text font="assets/ui/fonts/editor.neftd@tt_lakes_neue_trial_bold" value="OK" /></Panel></Layout>
+  <Layout name="layout.main"><Panel id="root"><Image texture="assets/loading/loading_ui.ytd@newengine_logo" /><Text font="assets/ui/fonts/editor.yfd@tt_lakes_neue_trial_bold" value="OK" /></Panel></Layout>
 </NeUiDictionary>"#
     }
 
@@ -541,10 +542,10 @@ mod tests {
     }
 
     #[test]
-    fn neui_dependencies_include_ytd_textures_and_neftd_fonts() {
+    fn neui_dependencies_include_ytd_textures_and_yfd_fonts() {
         let deps = dependencies(sample_xml());
         assert!(deps.contains(&"assets/loading/loading_ui.ytd@newengine_logo".to_owned()));
-        assert!(deps.contains(&"assets/ui/fonts/editor.neftd@tt_lakes_neue_trial_bold".to_owned()));
+        assert!(deps.contains(&"assets/ui/fonts/editor.yfd@tt_lakes_neue_trial_bold".to_owned()));
         let manifest = manifest_json_for_xmlcentral(sample_xml(), "assets/ui/test.neui").unwrap();
         assert_eq!(
             manifest["ui_resource_dependencies"]["textures"][0],
@@ -552,7 +553,7 @@ mod tests {
         );
         assert_eq!(
             manifest["ui_resource_dependencies"]["fonts"][0],
-            "assets/ui/fonts/editor.neftd@tt_lakes_neue_trial_bold"
+            "assets/ui/fonts/editor.yfd@tt_lakes_neue_trial_bold"
         );
     }
 

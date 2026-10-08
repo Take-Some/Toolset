@@ -6,8 +6,17 @@ use std::{
 pub fn read_xml_or_ytyp(input: &Path) -> Result<String, String> {
     let bytes = fs::read(input).map_err(|e| format!("read '{}' failed: {e}", input.display()))?;
     if bytes.get(0..4) == Some(b"NEF8") {
+        return crate::properties::decode_ytyp_xml(&bytes)
+            .map_err(|e| format!("'{}' canonical YTYP decode failed: {e}", input.display()));
+    }
+    let is_authoring_source = input
+        .file_name()
+        .and_then(|value| value.to_str())
+        .map(|name| name.ends_with(".ytyp.xml"))
+        .unwrap_or(false);
+    if !is_authoring_source {
         return Err(format!(
-            "'{}' is legacy NEF8 metadata; .ytyp is now raw Y-Type Properties XML",
+            "'{}' is raw XML under a runtime .ytyp path; runtime YTYP must be canonical NEF8 V2 content_kind=3",
             input.display()
         ));
     }
@@ -115,7 +124,18 @@ pub fn absolutize(root: &Path, path: &Path) -> PathBuf {
 }
 
 pub fn logical_asset_path_for_output(root: &Path, output: &Path) -> String {
-    rel(root, output)
+    let relative = rel(root, output);
+    let lower = relative.to_ascii_lowercase();
+    for (physical, mounted) in [
+        ("content/", ""),
+        ("definitions/", "definitions/"),
+        ("scripts/", "scripts/"),
+    ] {
+        if lower.starts_with(physical) {
+            return format!("{mounted}{}", &relative[physical.len()..]);
+        }
+    }
+    relative
 }
 
 pub fn rel(root: &Path, path: &Path) -> String {
@@ -161,4 +181,26 @@ fn asset_root(root: &Path) -> PathBuf {
         return nested_neocore_assets;
     }
     root.to_path_buf()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn project_physical_roots_project_to_vfs_paths() {
+        let root = Path::new("Project");
+        assert_eq!(
+            logical_asset_path_for_output(root, Path::new("Project/Definitions/fps/tree.ytyp")),
+            "definitions/fps/tree.ytyp"
+        );
+        assert_eq!(
+            logical_asset_path_for_output(root, Path::new("Project/Content/maps/world.ymap")),
+            "maps/world.ymap"
+        );
+        assert_eq!(
+            logical_asset_path_for_output(root, Path::new("Project/Scripts/game.ysc")),
+            "scripts/game.ysc"
+        );
+    }
 }

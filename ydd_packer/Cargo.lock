@@ -57,6 +57,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "320119579fcad9c21884f5c4861d16174d0e06250625266f50fe6898340abefa"
 
 [[package]]
+name = "allocator-api2"
+version = "0.2.21"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "683d7910e743518b0e34f1186f92494becacb047c7b6bf616c96772180fef923"
+
+[[package]]
 name = "arrayref"
 version = "0.3.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -105,6 +111,12 @@ dependencies = [
  "constant_time_eq",
  "cpufeatures",
 ]
+
+[[package]]
+name = "byteorder"
+version = "1.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1fd0f2584146f6f2ef48085050886acf353beff7305ebd1ae69500e27c67f64b"
 
 [[package]]
 name = "cc"
@@ -186,6 +198,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "61803da095bee82a81bb1a452ecc25d3b2f1416d1897eb86430c6159ef717c17"
 
 [[package]]
+name = "equivalent"
+version = "1.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "877a4ace8713b0bcf2a4e7eec82529c029f1d0619886d18145fea96c3ffe5c0f"
+
+[[package]]
 name = "find-msvc-tools"
 version = "0.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -202,12 +220,40 @@ dependencies = [
 ]
 
 [[package]]
+name = "foldhash"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "77ce24cb58228fbb8aa041425bb1050850ac19177686ea6e0f41a70416f56fdb"
+
+[[package]]
+name = "fxhash"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c31b6d751ae2c7f11320402d34e41349dd1016f8d5d45e48c4312bc8625af50c"
+dependencies = [
+ "byteorder",
+]
+
+[[package]]
 name = "generational-arena"
 version = "0.2.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "877e94aff08e743b651baaea359664321055749b398adff8740a7399af7796e7"
 dependencies = [
  "cfg-if",
+]
+
+[[package]]
+name = "hashbrown"
+version = "0.17.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ed5909b6e89a2db4456e54cd5f673791d7eca6732202bbf2a9cc504fe2f9b84a"
+dependencies = [
+ "allocator-api2",
+ "equivalent",
+ "foldhash",
+ "serde",
+ "serde_core",
 ]
 
 [[package]]
@@ -264,11 +310,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "newengine-asset-format-nef8"
+version = "0.1.0"
+dependencies = [
+ "blake3",
+ "flate2",
+ "newengine-assets-api",
+ "newengine-contract-api",
+ "newengine-vfx-api",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "newengine-assets-api"
 version = "0.1.0"
 dependencies = [
  "abi_stable",
+ "blake3",
+ "flate2",
  "log",
+ "newengine-contract-api",
  "newengine-plugin-api",
  "newengine-schema-api",
  "newengine-service-api",
@@ -278,11 +340,40 @@ dependencies = [
 ]
 
 [[package]]
+name = "newengine-contract-api"
+version = "0.1.0"
+
+[[package]]
+name = "newengine-entity-api"
+version = "0.1.0"
+dependencies = [
+ "newengine-math",
+ "newengine-service-api",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "newengine-math"
+version = "0.1.0"
+dependencies = [
+ "fxhash",
+ "hashbrown",
+ "newengine-ulog-api",
+ "once_cell",
+ "parking_lot",
+ "slotmap",
+]
+
+[[package]]
 name = "newengine-plugin-api"
 version = "0.1.0"
 dependencies = [
  "abi_stable",
+ "newengine-contract-api",
  "newengine-service-api",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
@@ -298,6 +389,7 @@ dependencies = [
 name = "newengine-service-api"
 version = "0.1.0"
 dependencies = [
+ "newengine-contract-api",
  "serde",
  "serde_json",
 ]
@@ -307,6 +399,15 @@ name = "newengine-ulog-api"
 version = "0.1.0"
 dependencies = [
  "log",
+ "serde_json",
+]
+
+[[package]]
+name = "newengine-vfx-api"
+version = "0.1.0"
+dependencies = [
+ "newengine-entity-api",
+ "serde",
  "serde_json",
 ]
 
@@ -329,7 +430,7 @@ dependencies = [
 
 [[package]]
 name = "northstar-nef8"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "newengine-assets-api",
 ]
@@ -349,12 +450,30 @@ dependencies = [
  "base64",
  "blake3",
  "flate2",
+ "newengine-asset-format-nef8",
  "northstar-cli",
  "northstar-nef8",
+ "northstar-ymat-packer",
  "serde",
  "serde_json",
  "winres",
 ]
+
+[[package]]
+name = "northstar-ymat-packer"
+version = "0.2.0"
+dependencies = [
+ "blake3",
+ "flate2",
+ "newengine-assets-api",
+ "serde_json",
+]
+
+[[package]]
+name = "once_cell"
+version = "1.21.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9f7c3e4beb33f85d45ae3e3a1792185706c8e16d043238c593331cc7cd313b50"
 
 [[package]]
 name = "parking_lot"
@@ -498,6 +617,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "703d5c7ef118737c72f1af64ad2f6f8c5e1921f818cdcb97b8fe6fc69bf66214"
 
 [[package]]
+name = "slotmap"
+version = "1.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bdd58c3c93c3d278ca835519292445cb4b0d4dc59ccfdf7ceadaab3f8aeb4038"
+dependencies = [
+ "version_check",
+]
+
+[[package]]
 name = "smallvec"
 version = "1.15.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -566,6 +694,12 @@ name = "unicode-ident"
 version = "1.0.24"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e6e4313cd5fcd3dad5cafa179702e2b244f760991f45397d14d4ebf38247da75"
+
+[[package]]
+name = "version_check"
+version = "0.9.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
 
 [[package]]
 name = "winapi"

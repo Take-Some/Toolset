@@ -2,7 +2,7 @@
 
 First-party clean `.nepak` VFS package manager.
 
-`.nepak` is a package/container layer for groups of runtime assets. It is intentionally separate from NEF8/ListFile assets such as `.ydd`, `.ytd`, `.ytyp`, `.nemat`, `.nepat`, and `.neui`.
+`.nepak` is a package/container layer for groups of runtime assets. It is intentionally separate from NEF8/ListFile assets such as `.ydd`, `.ytd`, `.ytyp`, `.ymat`, `.nepat`, and `.neui`.
 
 ## Commands
 

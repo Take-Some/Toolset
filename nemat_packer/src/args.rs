@@ -99,9 +99,3 @@ pub fn required_input(cfg: &CommonArgs) -> Result<PathBuf, String> {
         .clone()
         .ok_or_else(|| "--input is required".to_owned())
 }
-
-pub fn required_output(cfg: &CommonArgs, command: &str, what: &str) -> Result<PathBuf, String> {
-    cfg.output
-        .clone()
-        .ok_or_else(|| format!("{command} requires --output {what}"))
-}

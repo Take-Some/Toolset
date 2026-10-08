@@ -1,4 +1,5 @@
 use serde::Serialize;
+use serde_json::Value;
 
 pub const CONTENT_KIND_YDD_DRAWABLE_DICTIONARY: u16 = 2;
 
@@ -18,6 +19,9 @@ pub struct DrawableModel {
     pub name: String,
     pub source_path: String,
     pub properties_ref: Option<String>,
+    /// Column-major affine transform from authored skin/skeleton source space into
+    /// baked model vertex space. Only skinned YDD v3 entries need this.
+    pub skin_source_to_model: Option<[f32; 16]>,
     pub meshes: Vec<DrawableMesh>,
     pub bounds: Bounds3,
 }
@@ -25,8 +29,14 @@ pub struct DrawableModel {
 #[derive(Debug, Clone, Serialize)]
 pub struct DrawableMesh {
     pub name: String,
+    /// External material selector. Mutually exclusive with inline_material.
     pub material_ref: Option<String>,
+    /// Built-in material semantic object using one northstar.ymat.v1 material entry shape.
+    pub inline_material: Option<Value>,
     pub vertices: Vec<Vertex>,
+    /// Optional four-influence skin stream. Static meshes keep this as None and
+    /// remain YDD v2; skinned meshes promote their dictionary to YDD v3.
+    pub skin: Option<Vec<SkinVertex>>,
     pub indices: Vec<u32>,
     pub bounds: Bounds3,
 }
@@ -36,6 +46,14 @@ pub struct Vertex {
     pub position: [f32; 3],
     pub normal: [f32; 3],
     pub uv0: [f32; 2],
+}
+
+#[derive(Debug, Clone, Copy, Serialize)]
+pub struct SkinVertex {
+    pub joints: [u16; 4],
+    pub weights: [f32; 4],
+    pub joints_extra: [u16; 4],
+    pub weights_extra: [f32; 4],
 }
 
 #[derive(Debug, Clone, Copy, Serialize)]
@@ -117,10 +135,34 @@ pub fn stable_hash64(value: &str) -> u64 {
 }
 
 pub fn validate_material_ref(value: &str) -> Result<(), String> {
-    if !value.ends_with(".nemat") && !value.contains(".nemat@") {
+    let value = value.trim();
+    let Some((path, entry)) = value.rsplit_once('@') else {
         return Err(format!(
-            "material ref '{value}' must point to .nemat or .nemat@entry"
+            "material ref '{value}' must point to a concrete .ymat@entry"
         ));
+    };
+    if !path.to_ascii_lowercase().ends_with(".ymat") || entry.trim().is_empty() {
+        return Err(format!(
+            "material ref '{value}' must point to a concrete .ymat@entry"
+        ));
+    }
+    Ok(())
+}
+
+pub fn validate_inline_material(value: &Value) -> Result<(), String> {
+    let object = value
+        .as_object()
+        .ok_or("inline material must be a JSON object")?;
+    for key in ["name", "shader"] {
+        if object
+            .get(key)
+            .and_then(Value::as_str)
+            .map(str::trim)
+            .unwrap_or("")
+            .is_empty()
+        {
+            return Err(format!("inline material requires non-empty '{key}'"));
+        }
     }
     Ok(())
 }
